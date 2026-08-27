@@ -69,8 +69,11 @@ private struct MenuPane: View {
                     value: $settings.itemsPerFolder, in: 1...50)
             Stepper("Maximum title length: \(settings.maxTitleLength)",
                     value: $settings.maxTitleLength, in: 10...200, step: 5)
-            Toggle("Assign number keys (1–9, 0) to menu items", isOn: $settings.numericKeyEquivalents)
             Toggle("Number all menu items in their titles", isOn: $settings.showItemNumbers)
+            Toggle("Assign number keys (1–9, 0) as shortcuts", isOn: $settings.numericKeyEquivalents)
+            Text("With numbered titles, type an item's number to jump to it and press Return to select. Shortcut badges are shown only when title numbering is off.")
+                .font(.caption)
+                .foregroundColor(.secondary)
             Toggle("Show image thumbnails in menu", isOn: $settings.showImageThumbnails)
             Toggle("Show full content as tooltip", isOn: $settings.showToolTips)
         }

@@ -137,7 +137,9 @@ final class MenuController: NSObject, NSMenuDelegate {
         item.target = self
         item.representedObject = clip.id
 
-        if settings.numericKeyEquivalents && numberInMenu < 10 {
+        // Numbered titles make the badge column redundant (type-select on the
+        // "n. " prefix covers keyboard access), so badges only appear without it.
+        if settings.numericKeyEquivalents && !settings.showItemNumbers && numberInMenu < 10 {
             item.keyEquivalent = String((numberInMenu + 1) % 10)
             item.keyEquivalentModifierMask = []
         }
@@ -182,7 +184,7 @@ final class MenuController: NSObject, NSMenuDelegate {
                               action: #selector(selectSnippet(_:)), keyEquivalent: "")
         item.target = self
         item.representedObject = snippet.content
-        if settings.numericKeyEquivalents && numberInMenu < 10 {
+        if settings.numericKeyEquivalents && !settings.showItemNumbers && numberInMenu < 10 {
             item.keyEquivalent = String((numberInMenu + 1) % 10)
             item.keyEquivalentModifierMask = []
         }
