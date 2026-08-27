@@ -28,7 +28,8 @@ derived works not reuse the ClipMenu name.*
   clipboard text as `clipText` and returns the transformed string (the same
   contract as classic ClipMenu action scripts).
 - **Snippet import** — menu → Import Snippets… reads classic ClipMenu XML
-  exports and ClipStack JSON backups.
+  exports, ClipStack JSON backups, and Text Blaze folder exports (JSON).
+  Text Blaze dynamic `{commands}` are imported as literal text.
 - **Automatic backups to Google Drive** — snippets and history are backed up
   daily into the Google Drive for desktop sync folder
   (`My Drive/ClipStack Backups`), keeping the 14 most recent. Configure or run

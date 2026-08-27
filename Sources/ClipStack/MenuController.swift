@@ -320,7 +320,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.xml, .json]
         panel.allowsMultipleSelection = false
-        panel.message = "Choose a snippet file to import (classic ClipMenu XML or ClipStack JSON)"
+        panel.message = "Choose a snippet file to import (classic ClipMenu XML, ClipStack JSON, or Text Blaze JSON)"
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         let alert = NSAlert()
