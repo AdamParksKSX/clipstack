@@ -217,8 +217,6 @@ final class MenuController: NSObject, NSMenuDelegate {
             groupItem.submenu = submenu
             menu.addItem(groupItem)
         }
-        menu.addItem(.separator())
-        menu.addItem(makeItem("Open Scripts Folder…", action: #selector(openActionsFolder)))
         return menu
     }
 
@@ -346,9 +344,4 @@ final class MenuController: NSObject, NSMenuDelegate {
         onShowPreferences?()
     }
 
-    @objc private func openActionsFolder() {
-        let directory = ActionEngine.actionsDirectory
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        NSWorkspace.shared.open(directory)
-    }
 }

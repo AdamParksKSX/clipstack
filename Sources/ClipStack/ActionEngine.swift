@@ -1,5 +1,4 @@
 import Foundation
-import CryptoKit
 import JavaScriptCore
 
 /// Text-transform actions applied to the current clipboard text, replicating
@@ -19,55 +18,11 @@ enum ActionEngine {
         HistoryStore.storageDirectory.appendingPathComponent("actions", isDirectory: true)
     }
 
+    /// Trimmed to the one transform the team actually uses; more can be
+    /// added back here or dropped into the user scripts folder.
     static let builtIns: [ClipAction] = [
-        ClipAction(name: "Uppercase", group: "Change Case") { $0.uppercased() },
-        ClipAction(name: "Lowercase", group: "Change Case") { $0.lowercased() },
-        ClipAction(name: "Capitalize Words", group: "Change Case") { $0.capitalized },
-        ClipAction(name: "Trim Whitespace", group: "Whitespace") {
-            $0.trimmingCharacters(in: .whitespacesAndNewlines)
-        },
-        ClipAction(name: "Collapse Spaces", group: "Whitespace") {
-            $0.replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression)
-        },
-        ClipAction(name: "Remove Line Breaks", group: "Whitespace") {
-            $0.replacingOccurrences(of: "\r\n", with: " ")
-              .replacingOccurrences(of: "\n", with: " ")
-              .replacingOccurrences(of: "\r", with: " ")
-        },
-        ClipAction(name: "Reverse", group: nil) { String($0.reversed()) },
-        ClipAction(name: "Encode to Base64", group: "Encoding") {
+        ClipAction(name: "Encode to Base64", group: nil) {
             Data($0.utf8).base64EncodedString()
-        },
-        ClipAction(name: "Decode from Base64", group: "Encoding") {
-            guard let data = Data(base64Encoded: $0.trimmingCharacters(in: .whitespacesAndNewlines)) else { return nil }
-            return String(data: data, encoding: .utf8)
-        },
-        ClipAction(name: "Encode URI Component", group: "Encoding") {
-            $0.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~")))
-        },
-        ClipAction(name: "Decode URI Component", group: "Encoding") { $0.removingPercentEncoding },
-        ClipAction(name: "Escape HTML Characters", group: "HTML") {
-            $0.replacingOccurrences(of: "&", with: "&amp;")
-              .replacingOccurrences(of: "<", with: "&lt;")
-              .replacingOccurrences(of: ">", with: "&gt;")
-              .replacingOccurrences(of: "\"", with: "&quot;")
-              .replacingOccurrences(of: "'", with: "&#39;")
-        },
-        ClipAction(name: "Unescape HTML Characters", group: "HTML") {
-            $0.replacingOccurrences(of: "&lt;", with: "<")
-              .replacingOccurrences(of: "&gt;", with: ">")
-              .replacingOccurrences(of: "&quot;", with: "\"")
-              .replacingOccurrences(of: "&#39;", with: "'")
-              .replacingOccurrences(of: "&amp;", with: "&")
-        },
-        ClipAction(name: "Calculate MD5 Hash", group: "Crypt") {
-            Insecure.MD5.hash(data: Data($0.utf8)).map { String(format: "%02x", $0) }.joined()
-        },
-        ClipAction(name: "Calculate SHA-1 Hash", group: "Crypt") {
-            Insecure.SHA1.hash(data: Data($0.utf8)).map { String(format: "%02x", $0) }.joined()
-        },
-        ClipAction(name: "Calculate SHA-256 Hash", group: "Crypt") {
-            SHA256.hash(data: Data($0.utf8)).map { String(format: "%02x", $0) }.joined()
         },
     ]
 
