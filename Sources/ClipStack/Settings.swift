@@ -44,6 +44,8 @@ final class Settings: ObservableObject {
     // MARK: Hotkeys
     @Published var historyHotKey: KeyCombo? { didSet { saveCombo("historyHotKey", historyHotKey) } }
     @Published var snippetsHotKey: KeyCombo? { didSet { saveCombo("snippetsHotKey", snippetsHotKey) } }
+    @Published var encodeHotKey: KeyCombo? { didSet { saveCombo("encodeHotKey", encodeHotKey) } }
+    @Published var decodeHotKey: KeyCombo? { didSet { saveCombo("decodeHotKey", decodeHotKey) } }
 
     private init() {
         defaults.register(defaults: [
@@ -86,6 +88,8 @@ final class Settings: ObservableObject {
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         historyHotKey = Self.loadCombo(defaults, "historyHotKey") ?? KeyCombo.defaultHistory
         snippetsHotKey = Self.loadCombo(defaults, "snippetsHotKey") ?? KeyCombo.defaultSnippets
+        encodeHotKey = Self.loadCombo(defaults, "encodeHotKey") ?? KeyCombo.defaultEncode
+        decodeHotKey = Self.loadCombo(defaults, "decodeHotKey") ?? KeyCombo.defaultDecode
     }
 
     private func save(_ key: String, _ value: Any) {

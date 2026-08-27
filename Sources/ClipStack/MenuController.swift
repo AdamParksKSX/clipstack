@@ -226,10 +226,30 @@ final class MenuController: NSObject, NSMenuDelegate {
     private func actionMenuItem(for action: ClipAction) -> NSMenuItem {
         let item = NSMenuItem(title: action.name, action: #selector(runAction(_:)), keyEquivalent: "")
         item.target = self
+        // Show the global hotkey next to the action, when one is set.
+        if let combo = hotKeyCombo(forActionNamed: action.name), let key = combo.menuKeyEquivalent {
+            item.keyEquivalent = key
+            item.keyEquivalentModifierMask = combo.modifiers
+        }
         actionRegistry[nextActionTag] = action
         item.tag = nextActionTag
         nextActionTag += 1
         return item
+    }
+
+    private func hotKeyCombo(forActionNamed name: String) -> KeyCombo? {
+        switch name {
+        case "Encode to Base64": return settings.encodeHotKey
+        case "Decode from Base64": return settings.decodeHotKey
+        default: return nil
+        }
+    }
+
+    /// Runs a built-in or user action by name — used by the global hotkeys.
+    func performAction(named name: String) {
+        guard let action = (ActionEngine.builtIns + ActionEngine.userActions())
+            .first(where: { $0.name == name }) else { return }
+        execute(action)
     }
 
     // MARK: Item helpers
@@ -286,6 +306,10 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     @objc private func runAction(_ sender: NSMenuItem) {
         guard let action = actionRegistry[sender.tag] else { return }
+        execute(action)
+    }
+
+    private func execute(_ action: ClipAction) {
         guard let input = clipboardText() else {
             actionFailed("There is no text on the clipboard to transform.")
             return

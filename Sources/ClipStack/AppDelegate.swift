@@ -55,6 +55,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.menuController.popUpSnippetsMenu()
             }
         }
+        if let combo = settings.encodeHotKey, !combo.isNone {
+            HotKeyCenter.shared.register(combo) { [weak self] in
+                self?.menuController.performAction(named: "Encode to Base64")
+            }
+        }
+        if let combo = settings.decodeHotKey, !combo.isNone {
+            HotKeyCenter.shared.register(combo) { [weak self] in
+                self?.menuController.performAction(named: "Decode from Base64")
+            }
+        }
     }
 
     // MARK: Windows

@@ -14,6 +14,16 @@ struct KeyCombo: Codable, Equatable {
 
     static let defaultHistory = KeyCombo(keyCode: UInt16(kVK_ANSI_V), modifierRawValue: NSEvent.ModifierFlags([.command, .shift]).rawValue)
     static let defaultSnippets = KeyCombo(keyCode: UInt16(kVK_ANSI_B), modifierRawValue: NSEvent.ModifierFlags([.command, .shift]).rawValue)
+    static let defaultEncode = KeyCombo(keyCode: UInt16(kVK_ANSI_E), modifierRawValue: NSEvent.ModifierFlags([.command, .shift]).rawValue)
+    static let defaultDecode = KeyCombo(keyCode: UInt16(kVK_ANSI_D), modifierRawValue: NSEvent.ModifierFlags([.command, .shift]).rawValue)
+
+    /// Lowercase character for NSMenuItem.keyEquivalent, when representable.
+    var menuKeyEquivalent: String? {
+        guard !isNone else { return nil }
+        let name = KeyCombo.keyName(for: keyCode)
+        guard name.count == 1 else { return nil }
+        return name.lowercased()
+    }
 
     var carbonModifiers: UInt32 {
         var result: UInt32 = 0

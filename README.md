@@ -20,7 +20,8 @@ derived works not reuse the ClipMenu name.*
   window and shown at the bottom of the menu. Auto-pastes on selection
   (toggleable).
 - **Global hotkeys** — ⌘⇧V pops the history menu at the mouse cursor, ⌘⇧B pops
-  the snippets menu. Both are re-recordable in Preferences.
+  the snippets menu, ⌘⇧E / ⌘⇧D encode/decode the clipboard as Base64. All are
+  re-recordable in Preferences.
 - **Actions** — transforms applied to the current clipboard text; the result
   replaces the clipboard and is added to the history. Currently trimmed to
   **Encode to Base64** and **Decode from Base64**; custom JavaScript actions

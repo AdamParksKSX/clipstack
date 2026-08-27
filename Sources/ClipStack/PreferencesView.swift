@@ -114,6 +114,16 @@ private struct ShortcutsPane: View {
             Text("The menu pops up at the mouse cursor, in any application.")
                 .font(.caption)
                 .foregroundColor(.secondary)
+            Divider()
+            LabeledContent("Encode clipboard to Base64:") {
+                ShortcutRecorderView(combo: $settings.encodeHotKey)
+            }
+            LabeledContent("Decode clipboard from Base64:") {
+                ShortcutRecorderView(combo: $settings.decodeHotKey)
+            }
+            Text("Transforms the clipboard text in place and adds the result to the history.")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
         .padding()
     }
