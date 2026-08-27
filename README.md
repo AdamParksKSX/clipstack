@@ -21,9 +21,10 @@ derived works not reuse the ClipMenu name.*
   (toggleable).
 - **Global hotkeys** — ⌘⇧V pops the history menu at the mouse cursor, ⌘⇧B pops
   the snippets menu. Both are re-recordable in Preferences.
-- **Actions** — transforms applied to the current clipboard text. Currently
-  trimmed to **Encode to Base64**; custom JavaScript actions are still
-  supported — drop `.js` files into
+- **Actions** — transforms applied to the current clipboard text; the result
+  replaces the clipboard and is added to the history. Currently trimmed to
+  **Encode to Base64** and **Decode from Base64**; custom JavaScript actions
+  are still supported — drop `.js` files into
   `~/Library/Application Support/ClipStack/actions/` (create it if needed) —
   each script gets the clipboard text as `clipText` and returns the
   transformed string (the same contract as classic ClipMenu action scripts).

@@ -286,18 +286,46 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     @objc private func runAction(_ sender: NSMenuItem) {
         guard let action = actionRegistry[sender.tag] else { return }
-        let pasteboard = NSPasteboard.general
-        guard let input = pasteboard.string(forType: .string) else {
-            NSSound.beep()
+        guard let input = clipboardText() else {
+            actionFailed("There is no text on the clipboard to transform.")
             return
         }
         guard let output = action.transform(input) else {
-            NSSound.beep()
+            actionFailed("\"\(action.name)\" could not transform the clipboard text (for Base64 decoding, the text must be valid Base64).")
             return
         }
+        // Write the result and record it in the history immediately, so it
+        // shows as the newest item without waiting for the pasteboard poll.
+        monitor.suppressNextChange = true
+        let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(output, forType: .string)
-        // Let the monitor record the transformed text as a new history entry.
+        history.add(ClipItem(kind: .text, text: output))
+    }
+
+    /// Plain text from the clipboard, falling back to rich-text-only content
+    /// (e.g. RTF or HTML flavors with no plain-string representation).
+    private func clipboardText() -> String? {
+        let pasteboard = NSPasteboard.general
+        if let text = pasteboard.string(forType: .string) { return text }
+        if let rtfData = pasteboard.data(forType: .rtf),
+           let attributed = NSAttributedString(rtf: rtfData, documentAttributes: nil) {
+            return attributed.string
+        }
+        if let htmlData = pasteboard.data(forType: .html),
+           let attributed = NSAttributedString(html: htmlData, documentAttributes: nil) {
+            return attributed.string
+        }
+        return nil
+    }
+
+    private func actionFailed(_ message: String) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Action failed"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.runModal()
     }
 
     @objc private func clearHistory() {

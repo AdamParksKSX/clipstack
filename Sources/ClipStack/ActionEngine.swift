@@ -18,11 +18,15 @@ enum ActionEngine {
         HistoryStore.storageDirectory.appendingPathComponent("actions", isDirectory: true)
     }
 
-    /// Trimmed to the one transform the team actually uses; more can be
+    /// Trimmed to the transforms the team actually uses; more can be
     /// added back here or dropped into the user scripts folder.
     static let builtIns: [ClipAction] = [
         ClipAction(name: "Encode to Base64", group: nil) {
             Data($0.utf8).base64EncodedString()
+        },
+        ClipAction(name: "Decode from Base64", group: nil) {
+            guard let data = Data(base64Encoded: $0.trimmingCharacters(in: .whitespacesAndNewlines)) else { return nil }
+            return String(data: data, encoding: .utf8)
         },
     ]
 
