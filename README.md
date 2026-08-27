@@ -48,6 +48,28 @@ derived works not reuse the ClipMenu name.*
 - History and snippets persist as plain JSON in
   `~/Library/Application Support/ClipStack/`.
 
+## Installing
+
+Download the latest `ClipStack-x.y.z.dmg` from
+[Releases](https://github.com/AdamParksKSX/clipstack/releases), open it, and
+drag ClipStack to Applications.
+
+ClipStack is not notarized with Apple (no paid developer account), so the
+first launch is blocked by Gatekeeper. To approve it once:
+
+1. Open ClipStack — macOS shows a "not opened" warning; close it.
+2. Go to **System Settings → Privacy & Security**, scroll down, and click
+   **Open Anyway** next to the ClipStack message, then confirm.
+
+Alternatively, clear the quarantine flag in Terminal:
+
+```
+xattr -d com.apple.quarantine /Applications/ClipStack.app
+```
+
+To enable automatic paste, grant the Accessibility permission when prompted
+(System Settings → Privacy & Security → Accessibility).
+
 ## Building
 
 ```
@@ -63,6 +85,7 @@ in your keychain (recommended — keeps macOS permission grants stable across
 rebuilds), otherwise falls back to ad-hoc signing.
 
 The app icon is drawn programmatically: see `Bundle/draw_icon.swift`.
+`./dist.sh` builds and packages a drag-to-install DMG (plus a zip) in `dist/`.
 
 ## Credits
 
