@@ -37,6 +37,9 @@ final class Settings: ObservableObject {
         }
     }
 
+    // MARK: Updates
+    @Published var autoUpdateEnabled: Bool { didSet { save("autoUpdateEnabled", autoUpdateEnabled) } }
+
     // MARK: Backup
     @Published var backupEnabled: Bool { didSet { save("backupEnabled", backupEnabled) } }
     @Published var backupFolderPath: String { didSet { save("backupFolderPath", backupFolderPath) } }
@@ -64,6 +67,7 @@ final class Settings: ObservableObject {
             "pasteAutomatically": false,
             "pasteSnippetsAutomatically": true,
             "launchAtLogin": false,
+            "autoUpdateEnabled": true,
             "backupEnabled": true,
             "backupFolderPath": Self.defaultBackupFolder() ?? "",
         ])
@@ -82,6 +86,7 @@ final class Settings: ObservableObject {
         showToolTips = defaults.bool(forKey: "showToolTips")
         pasteAutomatically = defaults.bool(forKey: "pasteAutomatically")
         pasteSnippetsAutomatically = defaults.bool(forKey: "pasteSnippetsAutomatically")
+        autoUpdateEnabled = defaults.bool(forKey: "autoUpdateEnabled")
         backupEnabled = defaults.bool(forKey: "backupEnabled")
         backupFolderPath = defaults.string(forKey: "backupFolderPath") ?? ""
         excludedBundleIDs = defaults.stringArray(forKey: "excludedBundleIDs") ?? []

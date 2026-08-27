@@ -53,6 +53,16 @@ private struct GeneralPane: View {
             Text("Without automatic paste, selecting an item copies it to the clipboard for you to paste with ⌘V.")
                 .font(.caption)
                 .foregroundColor(.secondary)
+            Divider()
+            Toggle("Check for updates weekly and install automatically", isOn: $settings.autoUpdateEnabled)
+            HStack {
+                Button("Check for Updates Now") {
+                    UpdateChecker.shared.check(userInitiated: true)
+                }
+                Text("Version \(UpdateChecker.shared.currentVersion)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding()
     }

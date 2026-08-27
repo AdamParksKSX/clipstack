@@ -46,7 +46,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     func popUpHistoryMenu() {
         let menu = NSMenu()
         rebuild(menu, includeAppCommands: true, historyOnly: false)
-        menu.popUp(positioning: menu.items.first, at: NSEvent.mouseLocation, in: nil)
+        popUpAtCursor(menu)
     }
 
     /// Pops a snippets-only menu up at the mouse cursor (snippets hotkey).
@@ -58,7 +58,22 @@ final class MenuController: NSObject, NSMenuDelegate {
         }
         menu.addItem(.separator())
         menu.addItem(makeItem("Edit Snippets…", action: #selector(editSnippets)))
-        menu.popUp(positioning: menu.items.first, at: NSEvent.mouseLocation, in: nil)
+        popUpAtCursor(menu)
+    }
+
+    /// Shows the menu at the cursor, shifting the anchor so the whole menu
+    /// fits on screen (a menu opened near the bottom edge would otherwise be
+    /// compressed into a scrolling list).
+    private func popUpAtCursor(_ menu: NSMenu) {
+        var point = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(point, $0.frame, false) } ?? NSScreen.main
+        if let visible = screen?.visibleFrame {
+            let size = menu.size
+            // The menu opens downward and rightward from the anchor point.
+            point.x = min(max(point.x, visible.minX), max(visible.minX, visible.maxX - size.width))
+            point.y = min(max(point.y, visible.minY + size.height), visible.maxY)
+        }
+        menu.popUp(positioning: nil, at: point, in: nil)
     }
 
     // MARK: Building

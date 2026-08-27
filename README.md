@@ -50,6 +50,11 @@ derived works not reuse the ClipMenu name.*
   Accessibility permission (prompted on first use).
 - History and snippets persist as plain JSON in
   `~/Library/Application Support/ClipStack/`.
+- **Self-updating** — once a week the app checks GitHub Releases, downloads a
+  newer build, verifies it is signed with the same certificate before
+  installing, and offers to relaunch. Toggleable in Preferences → General
+  ("Check for Updates Now" lives there too). Anonymous API access means this
+  works while the repository is public; on a private repo checks are skipped.
 
 ## Installing
 

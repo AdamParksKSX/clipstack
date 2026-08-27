@@ -28,6 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         BackupManager.shared.configure(settings: settings, history: history, snippets: snippets)
         BackupManager.shared.start()
 
+        UpdateChecker.shared.configure(settings: settings)
+        UpdateChecker.shared.start()
+
         NotificationCenter.default.addObserver(self, selector: #selector(settingsChanged),
                                                name: Settings.changedNotification, object: nil)
     }
