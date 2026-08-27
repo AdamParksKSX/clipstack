@@ -24,9 +24,9 @@ final class MenuController: NSObject, NSMenuDelegate {
     func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "doc.on.clipboard",
-                                   accessibilityDescription: "ClipStack")
-            button.image?.isTemplate = true
+            let icon = StatusIcon.make()
+            icon.accessibilityDescription = "ClipStack"
+            button.image = icon
         }
         let menu = NSMenu()
         menu.delegate = self
