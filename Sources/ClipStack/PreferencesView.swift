@@ -70,6 +70,7 @@ private struct MenuPane: View {
             Stepper("Maximum title length: \(settings.maxTitleLength)",
                     value: $settings.maxTitleLength, in: 10...200, step: 5)
             Toggle("Assign number keys (1–9, 0) to menu items", isOn: $settings.numericKeyEquivalents)
+            Toggle("Number all menu items in their titles", isOn: $settings.showItemNumbers)
             Toggle("Show image thumbnails in menu", isOn: $settings.showImageThumbnails)
             Toggle("Show full content as tooltip", isOn: $settings.showToolTips)
         }

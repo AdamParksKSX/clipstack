@@ -105,7 +105,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
         let inlineCount = min(settings.inlineItemCount, clips.count)
         for index in 0..<inlineCount {
-            menu.addItem(clipMenuItem(for: clips[index], numberInMenu: index))
+            menu.addItem(clipMenuItem(for: clips[index], numberInMenu: index, displayNumber: index + 1))
         }
 
         // Remaining items go in "n - m" folder submenus, like the original.
@@ -117,7 +117,9 @@ final class MenuController: NSObject, NSMenuDelegate {
             folderItem.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
             let submenu = NSMenu(title: folderItem.title)
             for (offset, index) in (start..<end).enumerated() {
-                submenu.addItem(clipMenuItem(for: clips[index], numberInMenu: offset))
+                // Titles show the absolute position (matching the "11 - 20"
+                // folder label); shortcut keys stay positional within the menu.
+                submenu.addItem(clipMenuItem(for: clips[index], numberInMenu: offset, displayNumber: index + 1))
             }
             folderItem.submenu = submenu
             menu.addItem(folderItem)
@@ -125,8 +127,12 @@ final class MenuController: NSObject, NSMenuDelegate {
         }
     }
 
-    private func clipMenuItem(for clip: ClipItem, numberInMenu: Int) -> NSMenuItem {
-        let item = NSMenuItem(title: clip.menuTitle(maxLength: settings.maxTitleLength),
+    private func clipMenuItem(for clip: ClipItem, numberInMenu: Int, displayNumber: Int) -> NSMenuItem {
+        var title = clip.menuTitle(maxLength: settings.maxTitleLength)
+        if settings.showItemNumbers {
+            title = "\(displayNumber). \(title)"
+        }
+        let item = NSMenuItem(title: title,
                               action: #selector(selectClip(_:)), keyEquivalent: "")
         item.target = self
         item.representedObject = clip.id
@@ -167,8 +173,12 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
 
     private func snippetMenuItem(for snippet: Snippet, numberInMenu: Int) -> NSMenuItem {
-        let title = snippet.title.isEmpty ? snippet.content : snippet.title
-        let item = NSMenuItem(title: String(title.prefix(settings.maxTitleLength)),
+        var title = String((snippet.title.isEmpty ? snippet.content : snippet.title)
+            .prefix(settings.maxTitleLength))
+        if settings.showItemNumbers {
+            title = "\(numberInMenu + 1). \(title)"
+        }
+        let item = NSMenuItem(title: title,
                               action: #selector(selectSnippet(_:)), keyEquivalent: "")
         item.target = self
         item.representedObject = snippet.content

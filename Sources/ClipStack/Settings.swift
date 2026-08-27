@@ -22,6 +22,7 @@ final class Settings: ObservableObject {
     @Published var itemsPerFolder: Int { didSet { save("itemsPerFolder", itemsPerFolder) } }
     @Published var maxTitleLength: Int { didSet { save("maxTitleLength", maxTitleLength) } }
     @Published var numericKeyEquivalents: Bool { didSet { save("numericKeyEquivalents", numericKeyEquivalents) } }
+    @Published var showItemNumbers: Bool { didSet { save("showItemNumbers", showItemNumbers) } }
     @Published var showImageThumbnails: Bool { didSet { save("showImageThumbnails", showImageThumbnails) } }
     @Published var showToolTips: Bool { didSet { save("showToolTips", showToolTips) } }
 
@@ -55,6 +56,7 @@ final class Settings: ObservableObject {
             "itemsPerFolder": 10,
             "maxTitleLength": 50,
             "numericKeyEquivalents": true,
+            "showItemNumbers": true,
             "showImageThumbnails": true,
             "showToolTips": true,
             "pasteAutomatically": false,
@@ -73,6 +75,7 @@ final class Settings: ObservableObject {
         itemsPerFolder = defaults.integer(forKey: "itemsPerFolder")
         maxTitleLength = defaults.integer(forKey: "maxTitleLength")
         numericKeyEquivalents = defaults.bool(forKey: "numericKeyEquivalents")
+        showItemNumbers = defaults.bool(forKey: "showItemNumbers")
         showImageThumbnails = defaults.bool(forKey: "showImageThumbnails")
         showToolTips = defaults.bool(forKey: "showToolTips")
         pasteAutomatically = defaults.bool(forKey: "pasteAutomatically")
