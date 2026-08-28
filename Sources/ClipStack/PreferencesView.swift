@@ -19,7 +19,7 @@ struct PreferencesView: View {
             BackupPane(settings: settings)
                 .tabItem { Label("Backup", systemImage: "externaldrive.badge.icloud") }
         }
-        .frame(width: 480)
+        .frame(width: 560)
         .padding()
     }
 }
