@@ -42,10 +42,12 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     // MARK: Hotkey popups
 
-    /// Pops the full menu up at the mouse cursor (history hotkey).
+    /// Pops a history-only menu up at the mouse cursor (history hotkey):
+    /// every clip inline, without folder submenus, snippets, actions, or app
+    /// commands. The full menu stays on the status item.
     func popUpHistoryMenu() {
         let menu = NSMenu()
-        rebuild(menu, includeAppCommands: true, historyOnly: false)
+        rebuild(menu, includeAppCommands: false, historyOnly: true, inlineAllHistory: true)
         popUpAtCursor(menu)
     }
 
@@ -78,10 +80,11 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     // MARK: Building
 
-    private func rebuild(_ menu: NSMenu, includeAppCommands: Bool, historyOnly: Bool) {
+    private func rebuild(_ menu: NSMenu, includeAppCommands: Bool, historyOnly: Bool,
+                         inlineAllHistory: Bool = false) {
         menu.removeAllItems()
 
-        addHistoryItems(to: menu)
+        addHistoryItems(to: menu, inlineAll: inlineAllHistory)
 
         if !historyOnly {
             let snippetSection = NSMenu()
@@ -111,14 +114,14 @@ final class MenuController: NSObject, NSMenuDelegate {
         }
     }
 
-    private func addHistoryItems(to menu: NSMenu) {
+    private func addHistoryItems(to menu: NSMenu, inlineAll: Bool = false) {
         let clips = history.clips
         guard !clips.isEmpty else {
             menu.addItem(disabledItem("No History"))
             return
         }
 
-        let inlineCount = min(settings.inlineItemCount, clips.count)
+        let inlineCount = inlineAll ? clips.count : min(settings.inlineItemCount, clips.count)
         for index in 0..<inlineCount {
             menu.addItem(clipMenuItem(for: clips[index], numberInMenu: index, displayNumber: index + 1))
         }
