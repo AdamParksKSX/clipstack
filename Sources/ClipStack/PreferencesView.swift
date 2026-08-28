@@ -24,6 +24,20 @@ struct PreferencesView: View {
     }
 }
 
+/// Secondary explanatory text under a control. Wraps onto multiple lines
+/// rather than widening the window (which clips the whole pane).
+private struct Caption: View {
+    private let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 private struct GeneralPane: View {
     @ObservedObject var settings: Settings
     @State private var accessibilityGranted = Paster.isTrusted
@@ -46,13 +60,9 @@ private struct GeneralPane: View {
                     accessibilityGranted = Paster.isTrusted
                 }
             if (settings.pasteAutomatically || settings.pasteSnippetsAutomatically) && !accessibilityGranted {
-                Text("Requires the Accessibility permission. Grant it in System Settings → Privacy & Security → Accessibility, then relaunch ClipMenu.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Caption("Requires the Accessibility permission. Grant it in System Settings → Privacy & Security → Accessibility, then relaunch ClipMenu.")
             }
-            Text("Without automatic paste, selecting an item copies it to the clipboard for you to paste with ⌘V.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Caption("Without automatic paste, selecting an item copies it to the clipboard for you to paste with ⌘V.")
             Divider()
             Toggle("Check for updates weekly and install automatically", isOn: $settings.autoUpdateEnabled)
             HStack {
@@ -81,9 +91,7 @@ private struct MenuPane: View {
                     value: $settings.maxTitleLength, in: 10...200, step: 5)
             Toggle("Number all menu items in their titles", isOn: $settings.showItemNumbers)
             Toggle("Assign number keys (1–9, 0) as shortcuts", isOn: $settings.numericKeyEquivalents)
-            Text("With numbered titles, type an item's number to jump to it and press Return to select. Shortcut badges are shown only when title numbering is off.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Caption("With numbered titles, type an item's number to jump to it and press Return to select. Shortcut badges are shown only when title numbering is off.")
             Toggle("Show image thumbnails in menu", isOn: $settings.showImageThumbnails)
             Toggle("Show full content as tooltip", isOn: $settings.showToolTips)
         }
@@ -103,16 +111,13 @@ private struct HistoryPane: View {
                     Text(period.label).tag(period)
                 }
             }
-            Text("Items older than the selected period are removed from the history. Favourites are never deleted.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            .fixedSize()
+            Caption("Items older than the selected period are removed from the history. Favourites are never deleted.")
             Toggle("Save history to disk (restored at launch)", isOn: $settings.persistHistory)
             Toggle("Capture images", isOn: $settings.captureImages)
             Toggle("Capture copied files", isOn: $settings.captureFiles)
             Toggle("Ignore concealed content (password managers)", isOn: $settings.ignoreConcealedContent)
-            Text("Apps that mark clipboard content as concealed or transient (most password managers) are never recorded when this is on.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Caption("Apps that mark clipboard content as concealed or transient (most password managers) are never recorded when this is on.")
         }
         .padding()
     }
@@ -129,9 +134,7 @@ private struct ShortcutsPane: View {
             LabeledContent("Open snippets menu:") {
                 ShortcutRecorderView(combo: $settings.snippetsHotKey)
             }
-            Text("The menu pops up at the mouse cursor, in any application.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Caption("The menu pops up at the mouse cursor, in any application.")
             Divider()
             LabeledContent("Encode clipboard to Base64:") {
                 ShortcutRecorderView(combo: $settings.encodeHotKey)
@@ -139,9 +142,7 @@ private struct ShortcutsPane: View {
             LabeledContent("Decode clipboard from Base64:") {
                 ShortcutRecorderView(combo: $settings.decodeHotKey)
             }
-            Text("Transforms the clipboard text in place and adds the result to the history.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Caption("Transforms the clipboard text in place and adds the result to the history.")
         }
         .padding()
     }
@@ -180,9 +181,7 @@ private struct BackupPane: View {
                 }
             }
 
-            Text("Backups go to your Google Drive sync folder, so Drive uploads them automatically. The \(BackupManager.keepCount) most recent daily backups are kept.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Caption("Backups go to your Google Drive sync folder, so Drive uploads them automatically. The \(BackupManager.keepCount) most recent daily backups are kept.")
         }
         .padding()
         .onReceive(NotificationCenter.default.publisher(for: BackupManager.didBackUpNotification)) { _ in
