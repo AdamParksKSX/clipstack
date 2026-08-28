@@ -25,9 +25,14 @@ final class HistoryStore {
         load()
     }
 
+    var favorites: [ClipItem] { clips.filter(\.isFavorite) }
+
     func add(_ clip: ClipItem) {
-        // Deduplicate: an existing identical clip moves to the front.
+        var clip = clip
+        // Deduplicate: an existing identical clip moves to the front,
+        // keeping its favourite status.
         if let existing = clips.firstIndex(where: { $0.contentEquals(clip) }) {
+            clip.isFavorite = clip.isFavorite || clips[existing].isFavorite
             clips.remove(at: existing)
         }
         clips.insert(clip, at: 0)
@@ -40,14 +45,38 @@ final class HistoryStore {
         scheduleSave()
     }
 
-    func clear() {
-        clips.removeAll()
+    func toggleFavorite(id: UUID) {
+        guard let index = clips.firstIndex(where: { $0.id == id }) else { return }
+        clips[index].isFavorite.toggle()
         scheduleSave()
     }
 
+    /// Replaces a text clip's content. Rich-text data is dropped because it
+    /// no longer matches the edited plain text.
+    func updateText(id: UUID, text: String) {
+        guard let index = clips.firstIndex(where: { $0.id == id }),
+              clips[index].kind == .text else { return }
+        clips[index].text = text
+        clips[index].rtfData = nil
+        scheduleSave()
+    }
+
+    /// Removes everything except favourites.
+    func clear() {
+        clips.removeAll { !$0.isFavorite }
+        scheduleSave()
+    }
+
+    /// Drops the oldest non-favourite clips beyond the history size limit.
+    /// Favourites never age out.
     func trim() {
-        if clips.count > settings.maxHistorySize {
-            clips.removeLast(clips.count - settings.maxHistorySize)
+        var excess = clips.count - settings.maxHistorySize
+        guard excess > 0 else { return }
+        for index in stride(from: clips.count - 1, through: 0, by: -1) where excess > 0 {
+            if !clips[index].isFavorite {
+                clips.remove(at: index)
+                excess -= 1
+            }
         }
     }
 

@@ -15,6 +15,10 @@ derived works not reuse the ClipMenu name.*
   images, and copied files.
 - **Inline items + numbered folders** — the first N clips appear inline, the
   rest in `11 - 20`-style submenus.
+- **Favourites, editing, and deleting** — every history item has inline
+  **★ favourite**, **✎ edit** (text clips), and **✕ delete** buttons on the
+  right of its row. Favourites are pinned to the top of the menu, never age
+  out of the history, and survive Clear History.
 - **Number-key shortcuts** (1–9, 0) to select items while a menu is open.
 - **Snippets** — user-defined text in folders, managed in a Snippet Editor
   window and shown at the bottom of the menu. Auto-pastes on selection

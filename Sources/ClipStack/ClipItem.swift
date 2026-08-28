@@ -17,10 +17,12 @@ struct ClipItem: Codable, Identifiable, Equatable {
     var rtfData: Data?
     var imagePNGData: Data?
     var filePaths: [String]
+    var isFavorite: Bool
 
     init(id: UUID = UUID(), date: Date = Date(), kind: Kind,
          text: String? = nil, rtfData: Data? = nil,
-         imagePNGData: Data? = nil, filePaths: [String] = []) {
+         imagePNGData: Data? = nil, filePaths: [String] = [],
+         isFavorite: Bool = false) {
         self.id = id
         self.date = date
         self.kind = kind
@@ -28,6 +30,20 @@ struct ClipItem: Codable, Identifiable, Equatable {
         self.rtfData = rtfData
         self.imagePNGData = imagePNGData
         self.filePaths = filePaths
+        self.isFavorite = isFavorite
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        date = try container.decode(Date.self, forKey: .date)
+        kind = try container.decode(Kind.self, forKey: .kind)
+        text = try container.decodeIfPresent(String.self, forKey: .text)
+        rtfData = try container.decodeIfPresent(Data.self, forKey: .rtfData)
+        imagePNGData = try container.decodeIfPresent(Data.self, forKey: .imagePNGData)
+        filePaths = try container.decodeIfPresent([String].self, forKey: .filePaths) ?? []
+        // History files written before favourites existed lack this key.
+        isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
     }
 
     /// Compares user-visible content (used for deduplication).
