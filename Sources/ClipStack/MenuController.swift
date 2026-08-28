@@ -425,9 +425,20 @@ final class MenuController: NSObject, NSMenuDelegate {
         execute(action)
     }
 
+    /// The last action run and its result, so re-running the same action
+    /// while the clipboard still holds that result keeps it stable instead
+    /// of nesting another transform (e.g. base64-encoding an encode's own
+    /// output). Copying anything else resets the behavior.
+    private var lastActionName: String?
+    private var lastActionOutput: String?
+
     private func execute(_ action: ClipAction) {
         guard let input = clipboardText() else {
             actionFailed("There is no text on the clipboard to transform.")
+            return
+        }
+        if action.name == lastActionName, input == lastActionOutput {
+            flashStatusIcon()
             return
         }
         guard let output = action.transform(input) else {
@@ -441,6 +452,8 @@ final class MenuController: NSObject, NSMenuDelegate {
         pasteboard.clearContents()
         pasteboard.setString(output, forType: .string)
         history.add(ClipItem(kind: .text, text: output))
+        lastActionName = action.name
+        lastActionOutput = output
         flashStatusIcon()
     }
 
