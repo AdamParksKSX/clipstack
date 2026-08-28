@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func settingsChanged() {
         history.trim()
+        history.expireOldClips()
         registerHotKeys()
     }
 

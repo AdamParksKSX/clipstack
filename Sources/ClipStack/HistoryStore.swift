@@ -5,6 +5,7 @@ final class HistoryStore {
     private(set) var clips: [ClipItem] = []
     private let settings: Settings
     private var saveWorkItem: DispatchWorkItem?
+    private var expirationTimer: Timer?
 
     static var storageDirectory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -23,6 +24,18 @@ final class HistoryStore {
     init(settings: Settings) {
         self.settings = settings
         load()
+        expireOldClips()
+        // Sweep periodically so items age out even while the app sits idle.
+        let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
+            self?.expireOldClips()
+        }
+        timer.tolerance = 10
+        RunLoop.main.add(timer, forMode: .common)
+        expirationTimer = timer
+    }
+
+    deinit {
+        expirationTimer?.invalidate()
     }
 
     var favorites: [ClipItem] { clips.filter(\.isFavorite) }
@@ -65,6 +78,16 @@ final class HistoryStore {
     func clear() {
         clips.removeAll { !$0.isFavorite }
         scheduleSave()
+    }
+
+    /// Deletes non-favourite clips older than the configured expiration
+    /// period. Favourites never expire.
+    func expireOldClips() {
+        guard let maxAge = settings.historyExpiration.maxAge else { return }
+        let cutoff = Date().addingTimeInterval(-maxAge)
+        let countBefore = clips.count
+        clips.removeAll { !$0.isFavorite && $0.date < cutoff }
+        if clips.count != countBefore { scheduleSave() }
     }
 
     /// Drops the oldest non-favourite clips beyond the history size limit.

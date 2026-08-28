@@ -2,6 +2,41 @@ import AppKit
 import Combine
 import ServiceManagement
 
+/// How long history items live before being deleted automatically.
+enum HistoryExpiration: String, CaseIterable, Identifiable {
+    case never
+    case hour
+    case sixHours
+    case day
+    case week
+    case month
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .never: return "Never"
+        case .hour: return "After 1 hour"
+        case .sixHours: return "After 6 hours"
+        case .day: return "After 1 day"
+        case .week: return "After 1 week"
+        case .month: return "After 1 month"
+        }
+    }
+
+    /// Maximum age in seconds, or nil when items never expire.
+    var maxAge: TimeInterval? {
+        switch self {
+        case .never: return nil
+        case .hour: return 3600
+        case .sixHours: return 6 * 3600
+        case .day: return 24 * 3600
+        case .week: return 7 * 24 * 3600
+        case .month: return 30 * 24 * 3600
+        }
+    }
+}
+
 /// App-wide user settings, persisted in UserDefaults.
 /// Mirrors the preference surface of the original ClipMenu.
 final class Settings: ObservableObject {
@@ -16,6 +51,7 @@ final class Settings: ObservableObject {
     @Published var ignoreConcealedContent: Bool { didSet { save("ignoreConcealedContent", ignoreConcealedContent) } }
     @Published var captureImages: Bool { didSet { save("captureImages", captureImages) } }
     @Published var captureFiles: Bool { didSet { save("captureFiles", captureFiles) } }
+    @Published var historyExpiration: HistoryExpiration { didSet { save("historyExpiration", historyExpiration.rawValue) } }
 
     // MARK: Menu
     @Published var inlineItemCount: Int { didSet { save("inlineItemCount", inlineItemCount) } }
@@ -57,6 +93,7 @@ final class Settings: ObservableObject {
             "ignoreConcealedContent": true,
             "captureImages": true,
             "captureFiles": true,
+            "historyExpiration": HistoryExpiration.never.rawValue,
             "inlineItemCount": 10,
             "itemsPerFolder": 10,
             "maxTitleLength": 50,
@@ -77,6 +114,8 @@ final class Settings: ObservableObject {
         ignoreConcealedContent = defaults.bool(forKey: "ignoreConcealedContent")
         captureImages = defaults.bool(forKey: "captureImages")
         captureFiles = defaults.bool(forKey: "captureFiles")
+        historyExpiration = defaults.string(forKey: "historyExpiration")
+            .flatMap(HistoryExpiration.init(rawValue:)) ?? .never
         inlineItemCount = defaults.integer(forKey: "inlineItemCount")
         itemsPerFolder = defaults.integer(forKey: "itemsPerFolder")
         maxTitleLength = defaults.integer(forKey: "maxTitleLength")
