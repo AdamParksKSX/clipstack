@@ -441,6 +441,26 @@ final class MenuController: NSObject, NSMenuDelegate {
         pasteboard.clearContents()
         pasteboard.setString(output, forType: .string)
         history.add(ClipItem(kind: .text, text: output))
+        flashStatusIcon()
+    }
+
+    /// Actions run silently from a global hotkey, so give a visible cue that
+    /// the transform succeeded: swap the status icon for a checkmark briefly.
+    private var flashGeneration = 0
+    private func flashStatusIcon() {
+        guard let button = statusItem?.button else { return }
+        flashGeneration += 1
+        let generation = flashGeneration
+        let checkmark = NSImage(systemSymbolName: "checkmark.circle.fill",
+                                accessibilityDescription: "Action completed")
+        button.image = checkmark
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let self, self.flashGeneration == generation,
+                  let button = self.statusItem?.button else { return }
+            let icon = StatusIcon.make()
+            icon.accessibilityDescription = "ClipStack"
+            button.image = icon
+        }
     }
 
     /// Plain text from the clipboard, falling back to rich-text-only content
