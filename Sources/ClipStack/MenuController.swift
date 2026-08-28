@@ -23,6 +23,11 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        // A stable autosave name plus forced visibility clears any persisted
+        // "hidden" state macOS may have saved for this item in a past run.
+        item.autosaveName = "ClipStackStatusItem"
+        item.behavior = []
+        item.isVisible = true
         if let button = item.button {
             let icon = StatusIcon.make()
             icon.accessibilityDescription = "ClipStack"
