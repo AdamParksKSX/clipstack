@@ -9,6 +9,21 @@ no code or assets from the original. Requires macOS 13+.
 *Named ClipStack (not "ClipMenu") per the original author's request that
 derived works not reuse the ClipMenu name.*
 
+## What's new in 1.2.0
+
+- **Favourites** — star any history item to pin it to the top of the menu;
+  favourites never age out of the history and survive Clear History.
+- **Edit clips** — fix up a text clip in place via an edit dialog.
+- **Delete clips** — remove single items; the menu stays open so several can
+  be cleaned up in a row.
+- All three live as **★ / ✎ / ✕ buttons on each history row** (in the style
+  of Clipboard History Pro). Clicking anywhere else on a row pastes it, and
+  number-key shortcuts and keyboard navigation work as before.
+- Preferences window widened so the Shortcuts pane labels aren't clipped.
+
+Older changes are on the
+[Releases](https://github.com/AdamParksKSX/clipstack/releases) page.
+
 ## Features
 
 - **Clipboard history** in the menu bar — text (with rich-text fidelity),
