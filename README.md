@@ -7,6 +7,13 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.3.4
+
+- Re-running an action while the clipboard still holds that action's result
+  now keeps the result stable instead of transforming it again — so invoking
+  "Encode to Base64" twice in a row no longer double-encodes. Copying
+  anything new resets this, so nested encoding is still possible on purpose.
+
 ## What's new in 1.3.3
 
 - Global hotkeys no longer fire repeatedly while held — holding a hotkey
