@@ -98,6 +98,14 @@ private struct HistoryPane: View {
         Form {
             Stepper("Maximum history size: \(settings.maxHistorySize)",
                     value: $settings.maxHistorySize, in: 1...500, step: 5)
+            Picker("Delete items automatically:", selection: $settings.historyExpiration) {
+                ForEach(HistoryExpiration.allCases) { period in
+                    Text(period.label).tag(period)
+                }
+            }
+            Text("Items older than the selected period are removed from the history. Favourites are never deleted.")
+                .font(.caption)
+                .foregroundColor(.secondary)
             Toggle("Save history to disk (restored at launch)", isOn: $settings.persistHistory)
             Toggle("Capture images", isOn: $settings.captureImages)
             Toggle("Capture copied files", isOn: $settings.captureFiles)

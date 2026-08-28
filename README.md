@@ -7,6 +7,13 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.3.0
+
+- **Auto-delete old history items** — a new "Delete items automatically"
+  setting in Preferences → History removes clips older than a chosen period
+  (1 hour, 6 hours, 1 day, 1 week, or 1 month; default Never). Favourites
+  are never deleted.
+
 ## What's new in 1.2.1
 
 - Daily backups now contain only snippets; clipboard history is no longer
@@ -58,8 +65,11 @@ Older changes are on the
   daily into the Google Drive for desktop sync folder
   (`My Drive/ClipStack Backups`), keeping the 14 most recent. Configure or run
   on demand in Preferences → Backup.
-- **Preferences** — history size, inline/folder counts, title length,
-  thumbnails, tooltips, persistence, excluded apps, launch at login, hotkeys.
+- **Auto-delete** — optionally remove history items older than a chosen
+  period (1 hour to 1 month) in Preferences → History; favourites are exempt.
+- **Preferences** — history size, auto-delete period, inline/folder counts,
+  title length, thumbnails, tooltips, persistence, excluded apps, launch at
+  login, hotkeys.
 
 ## Modern niceties
 
