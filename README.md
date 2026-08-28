@@ -7,6 +7,12 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.3.1
+
+- Fixed the History preferences pane being clipped at the window edges.
+  Explanatory captions in all preference panes now wrap instead of widening
+  the window.
+
 ## What's new in 1.3.0
 
 - **Auto-delete old history items** — a new "Delete items automatically"
