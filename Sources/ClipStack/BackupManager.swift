@@ -1,6 +1,6 @@
 import Foundation
 
-/// Automatic backups of snippets + history into a folder — by default the
+/// Automatic backups of snippets into a folder — by default the
 /// Google Drive for desktop sync folder, so backups land in Drive without any
 /// API integration. Runs a daily backup and keeps the most recent ones.
 final class BackupManager {
@@ -12,15 +12,13 @@ final class BackupManager {
     private static let lastBackupKey = "lastBackupDate"
 
     private var settings: Settings!
-    private var history: HistoryStore!
     private var snippets: SnippetStore!
     private var timer: Timer?
 
     private init() {}
 
-    func configure(settings: Settings, history: HistoryStore, snippets: SnippetStore) {
+    func configure(settings: Settings, snippets: SnippetStore) {
         self.settings = settings
-        self.history = history
         self.snippets = snippets
     }
 
@@ -64,8 +62,7 @@ final class BackupManager {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: baseFolder, withIntermediateDirectories: true)
 
-        // Flush pending saves so the copied files are current.
-        history.saveNow()
+        // Flush pending saves so the copied file is current.
         snippets.saveNow()
 
         let formatter = DateFormatter()
@@ -74,12 +71,9 @@ final class BackupManager {
                                                           isDirectory: true)
         try fileManager.createDirectory(at: backupDir, withIntermediateDirectories: true)
 
-        let source = HistoryStore.storageDirectory
-        for name in ["snippets.json", "history.json"] {
-            let sourceFile = source.appendingPathComponent(name)
-            if fileManager.fileExists(atPath: sourceFile.path) {
-                try fileManager.copyItem(at: sourceFile, to: backupDir.appendingPathComponent(name))
-            }
+        let sourceFile = HistoryStore.storageDirectory.appendingPathComponent("snippets.json")
+        if fileManager.fileExists(atPath: sourceFile.path) {
+            try fileManager.copyItem(at: sourceFile, to: backupDir.appendingPathComponent("snippets.json"))
         }
 
         UserDefaults.standard.set(Date(), forKey: Self.lastBackupKey)

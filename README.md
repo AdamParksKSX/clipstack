@@ -7,6 +7,11 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.2.1
+
+- Daily backups now contain only snippets; clipboard history is no longer
+  copied to the backup folder.
+
 ## What's new in 1.2.0
 
 - **Favourites** — star any history item to pin it to the top of the menu;
@@ -49,7 +54,7 @@ Older changes are on the
 - **Snippet import** — menu → Import Snippets… reads classic ClipMenu XML
   exports, ClipStack JSON backups, and Text Blaze folder exports (JSON).
   Text Blaze dynamic `{commands}` are imported as literal text.
-- **Automatic backups to Google Drive** — snippets and history are backed up
+- **Automatic backups to Google Drive** — snippets are backed up
   daily into the Google Drive for desktop sync folder
   (`My Drive/ClipStack Backups`), keeping the 14 most recent. Configure or run
   on demand in Preferences → Backup.

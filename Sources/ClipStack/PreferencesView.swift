@@ -146,7 +146,7 @@ private struct BackupPane: View {
 
     var body: some View {
         Form {
-            Toggle("Back up snippets and history automatically (daily)", isOn: $settings.backupEnabled)
+            Toggle("Back up snippets automatically (daily)", isOn: $settings.backupEnabled)
 
             LabeledContent("Backup folder:") {
                 VStack(alignment: .trailing, spacing: 4) {
