@@ -6,8 +6,6 @@ classic clipboard manager last released in 2009 for PowerPC/Intel Macs).
 ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
-*Named ClipStack (not "ClipMenu") per the original author's request that
-derived works not reuse the ClipMenu name.*
 
 ## Features
 
