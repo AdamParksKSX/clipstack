@@ -25,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         monitor.start()
         registerHotKeys()
 
-        BackupManager.shared.configure(settings: settings, history: history, snippets: snippets)
+        BackupManager.shared.configure(settings: settings, snippets: snippets)
         BackupManager.shared.start()
 
         UpdateChecker.shared.configure(settings: settings)
