@@ -24,6 +24,47 @@ struct PreferencesView: View {
     }
 }
 
+/// Temporary dev harness: renders each preferences pane to a PNG at the
+/// window's real width so layout can be checked without launching the app.
+/// Invoked with `ClipStack --render-prefs <output-directory>`.
+enum PrefsRenderer {
+    static func render(toDirectory directory: String) {
+        let settings = Settings.shared
+        let panes: [(String, AnyView)] = [
+            ("general", AnyView(GeneralPane(settings: settings))),
+            ("menu", AnyView(MenuPane(settings: settings))),
+            ("history", AnyView(HistoryPane(settings: settings))),
+            ("shortcuts", AnyView(ShortcutsPane(settings: settings))),
+            ("excluded", AnyView(ExcludedAppsPane(settings: settings))),
+            ("backup", AnyView(BackupPane(settings: settings))),
+        ]
+        let outDir = URL(fileURLWithPath: directory, isDirectory: true)
+        try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+        for (name, pane) in panes {
+            let host = NSHostingView(rootView: pane)
+            let idealHeight = host.fittingSize.height
+            let idealWidth = host.fittingSize.width
+            // Clip to the window's fixed 560pt width, as TabView does.
+            let window = NSWindow(contentRect: NSRect(x: -5000, y: -5000, width: 560, height: max(idealHeight, 180)),
+                                  styleMask: [.titled], backing: .buffered, defer: false)
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.contentView = host
+            window.orderFrontRegardless()
+            // Let SwiftUI complete its async layout/draw passes.
+            RunLoop.current.run(until: Date().addingTimeInterval(1.0))
+            guard let contentView = window.contentView,
+                  let rep = contentView.bitmapImageRepForCachingDisplay(in: contentView.bounds) else { continue }
+            contentView.cacheDisplay(in: contentView.bounds, to: rep)
+            window.orderOut(nil)
+            let url = outDir.appendingPathComponent("\(name).png")
+            if let png = rep.representation(using: .png, properties: [:]) {
+                try? png.write(to: url)
+            }
+            print("\(name): ideal \(Int(idealWidth))x\(Int(idealHeight)) → \(url.path)")
+        }
+    }
+}
+
 /// Secondary explanatory text under a control. Wraps onto multiple lines
 /// rather than widening the window (which clips the whole pane).
 private struct Caption: View {
@@ -34,6 +75,7 @@ private struct Caption: View {
         Text(text)
             .font(.caption)
             .foregroundColor(.secondary)
+            .frame(maxWidth: 340, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
     }
 }

@@ -7,6 +7,13 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.3.2
+
+- Preference pane captions now wrap reliably; the History pane no longer
+  overflows the window (completing the fix attempted in 1.3.1). All panes
+  are verified to fit via a new dev tool: `ClipStack --render-prefs <dir>`
+  renders each pane to a PNG with its measured width.
+
 ## What's new in 1.3.1
 
 - Fixed the History preferences pane being clipped at the window edges.
