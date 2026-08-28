@@ -42,7 +42,18 @@ final class MenuController: NSObject, NSMenuDelegate {
     // MARK: NSMenuDelegate
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // Folder submenus and popup menus share this delegate for highlight
+        // tracking; only the status-item menu rebuilds here.
+        guard menu === statusItem?.menu else { return }
         rebuild(menu, includeAppCommands: true, historyOnly: false)
+    }
+
+    /// Custom-view rows don't repaint on keyboard highlight changes, so the
+    /// highlight is mirrored into each row by hand.
+    func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
+        for menuItem in menu.items {
+            (menuItem.view as? ClipRowView)?.itemHighlighted = (menuItem === item)
+        }
     }
 
     // MARK: Hotkey popups
@@ -52,6 +63,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     /// commands. The full menu stays on the status item.
     func popUpHistoryMenu() {
         let menu = NSMenu()
+        menu.delegate = self
         rebuild(menu, includeAppCommands: false, historyOnly: true, inlineAllHistory: true)
         popUpAtCursor(menu)
     }
@@ -120,15 +132,24 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
 
     private func addHistoryItems(to menu: NSMenu, inlineAll: Bool = false) {
-        let clips = history.clips
-        guard !clips.isEmpty else {
+        guard !history.clips.isEmpty else {
             menu.addItem(disabledItem("No History"))
             return
         }
 
+        // Favourites stay pinned at the top, outside the numbered history.
+        let favorites = history.favorites
+        let clips = history.clips.filter { !$0.isFavorite }
+        for clip in favorites {
+            appendClipItems(to: menu, clip: clip, numberInMenu: -1, displayNumber: nil)
+        }
+        if !favorites.isEmpty && !clips.isEmpty {
+            menu.addItem(.separator())
+        }
+
         let inlineCount = inlineAll ? clips.count : min(settings.inlineItemCount, clips.count)
         for index in 0..<inlineCount {
-            menu.addItem(clipMenuItem(for: clips[index], numberInMenu: index, displayNumber: index + 1))
+            appendClipItems(to: menu, clip: clips[index], numberInMenu: index, displayNumber: index + 1)
         }
 
         // Remaining items go in "n - m" folder submenus, like the original.
@@ -139,41 +160,75 @@ final class MenuController: NSObject, NSMenuDelegate {
             let folderItem = NSMenuItem(title: "\(start + 1) - \(end)", action: nil, keyEquivalent: "")
             folderItem.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
             let submenu = NSMenu(title: folderItem.title)
+            submenu.delegate = self
             for (offset, index) in (start..<end).enumerated() {
                 // Titles show the absolute position (matching the "11 - 20"
                 // folder label); shortcut keys stay positional within the menu.
-                submenu.addItem(clipMenuItem(for: clips[index], numberInMenu: offset, displayNumber: index + 1))
+                appendClipItems(to: submenu, clip: clips[index], numberInMenu: offset, displayNumber: index + 1)
             }
+            unifyClipRowWidths(in: submenu)
             folderItem.submenu = submenu
             menu.addItem(folderItem)
             start = end
         }
+        unifyClipRowWidths(in: menu)
     }
 
-    private func clipMenuItem(for clip: ClipItem, numberInMenu: Int, displayNumber: Int) -> NSMenuItem {
+    private func appendClipItems(to menu: NSMenu, clip: ClipItem, numberInMenu: Int, displayNumber: Int?) {
+        menu.addItem(clipMenuItem(for: clip, numberInMenu: numberInMenu, displayNumber: displayNumber))
+    }
+
+    /// Custom-view rows size themselves; giving every row in a menu the width
+    /// of the widest keeps the buttons in one column.
+    private func unifyClipRowWidths(in menu: NSMenu) {
+        let rows = menu.items.compactMap { $0.view as? ClipRowView }
+        guard !rows.isEmpty else { return }
+        let sizes = rows.map(\.fittingSize)
+        let width = min(max(300, sizes.map(\.width).max() ?? 0), 560)
+        for (row, size) in zip(rows, sizes) {
+            row.frame = NSRect(x: 0, y: 0, width: width, height: max(size.height, 22))
+            row.autoresizingMask = [.width]
+        }
+    }
+
+    private func clipMenuItem(for clip: ClipItem, numberInMenu: Int, displayNumber: Int?) -> NSMenuItem {
         var title = clip.menuTitle(maxLength: settings.maxTitleLength)
-        if settings.showItemNumbers {
+        if settings.showItemNumbers, let displayNumber {
             title = "\(displayNumber). \(title)"
         }
+        // The action/keyEquivalent still drive keyboard selection (number keys,
+        // Return); mouse handling is done by the row view.
         let item = NSMenuItem(title: title,
                               action: #selector(selectClip(_:)), keyEquivalent: "")
         item.target = self
         item.representedObject = clip.id
-
-        // Numbered titles make the badge column redundant (type-select on the
-        // "n. " prefix covers keyboard access), so badges only appear without it.
-        if settings.numericKeyEquivalents && !settings.showItemNumbers && numberInMenu < 10 {
+        if settings.numericKeyEquivalents && !settings.showItemNumbers && (0..<10).contains(numberInMenu) {
             item.keyEquivalent = String((numberInMenu + 1) % 10)
             item.keyEquivalentModifierMask = []
         }
-        if settings.showToolTips {
-            item.toolTip = clip.toolTip
-        }
+
+        var icon: NSImage?
         if clip.kind == .image, settings.showImageThumbnails {
-            item.image = clip.thumbnail(height: 36)
+            icon = clip.thumbnail(height: 36)
         } else if clip.kind == .files {
-            item.image = NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
+            icon = NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
         }
+
+        let row = ClipRowView(title: title, icon: icon,
+                              isFavorite: clip.isFavorite,
+                              canEdit: clip.kind == .text,
+                              toolTip: settings.showToolTips ? clip.toolTip : nil)
+        let id = clip.id
+        row.onSelect = { [weak self] in self?.pasteClip(id: id) }
+        row.onToggleFavorite = { [weak self] in self?.history.toggleFavorite(id: id) }
+        row.onEdit = { [weak self] in self?.presentEditDialog(id: id) }
+        row.onDelete = { [weak self, weak item] in
+            self?.history.remove(id: id)
+            if let item, let menu = item.menu {
+                menu.removeItem(item)
+            }
+        }
+        item.view = row
         return item
     }
 
@@ -299,8 +354,12 @@ final class MenuController: NSObject, NSMenuDelegate {
     // MARK: Menu actions
 
     @objc private func selectClip(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? UUID,
-              let clip = history.clips.first(where: { $0.id == id }) else { return }
+        guard let id = sender.representedObject as? UUID else { return }
+        pasteClip(id: id)
+    }
+
+    private func pasteClip(id: UUID) {
+        guard let clip = history.clips.first(where: { $0.id == id }) else { return }
         monitor.suppressNextChange = true
         clip.write(to: NSPasteboard.general)
         // Selecting an item promotes it to the top of the history.
@@ -324,6 +383,40 @@ final class MenuController: NSObject, NSMenuDelegate {
                 // user can grant the permission auto-paste needs.
                 Paster.requestPermission()
             }
+        }
+    }
+
+    private func presentEditDialog(id: UUID) {
+        guard let clip = history.clips.first(where: { $0.id == id }),
+              clip.kind == .text else { return }
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.messageText = "Edit Clip"
+        alert.informativeText = "Changes replace the clip's text. Rich-text formatting is removed."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 440, height: 180))
+        scroll.hasVerticalScroller = true
+        scroll.borderType = .bezelBorder
+        let textView = NSTextView(frame: NSRect(origin: .zero, size: scroll.contentSize))
+        textView.isRichText = false
+        textView.allowsUndo = true
+        textView.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        textView.string = clip.text ?? ""
+        textView.autoresizingMask = [.width]
+        textView.isVerticallyResizable = true
+        textView.minSize = NSSize(width: 0, height: 0)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                                  height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+        scroll.documentView = textView
+        alert.accessoryView = scroll
+        alert.window.initialFirstResponder = textView
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            history.updateText(id: id, text: textView.string)
         }
     }
 
@@ -376,9 +469,15 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
 
     @objc private func clearHistory() {
+        let favoriteCount = history.favorites.count
+        let removableCount = history.clips.count - favoriteCount
         let alert = NSAlert()
         alert.messageText = "Clear clipboard history?"
-        alert.informativeText = "This removes all \(history.clips.count) recorded items. This cannot be undone."
+        var message = "This removes all \(removableCount) recorded item\(removableCount == 1 ? "" : "s")."
+        if favoriteCount > 0 {
+            message += " Your \(favoriteCount) favourite\(favoriteCount == 1 ? "" : "s") will be kept."
+        }
+        alert.informativeText = message + " This cannot be undone."
         alert.addButton(withTitle: "Clear History")
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning
