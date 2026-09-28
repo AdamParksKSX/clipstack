@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var snippetEditorWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        MainMenu.install()
         history = HistoryStore(settings: settings)
         snippets = SnippetStore()
         monitor = PasteboardMonitor(history: history, settings: settings)
