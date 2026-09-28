@@ -7,6 +7,17 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.3.5
+
+- Standard editing shortcuts — ⌘C, ⌘V, ⌘X, ⌘A and ⌘Z / ⌘⇧Z — now work in
+  the Snippet Editor, Preferences and the Edit Clip dialog, and ⌘W closes the
+  Snippet Editor and Preferences windows. Undo is cleared when you switch
+  snippets, so it can never apply one snippet's edits to another.
+- The Snippet Editor has a **Save** button (⌘S) and a status indicator that
+  confirms when your changes are saved or warns if saving failed (press Save
+  or hover the warning to see why). Edits are still saved automatically as
+  you type.
+
 ## What's new in 1.3.4
 
 - Re-running an action while the clipboard still holds that action's result

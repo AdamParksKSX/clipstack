@@ -63,7 +63,7 @@ final class BackupManager {
         try fileManager.createDirectory(at: baseFolder, withIntermediateDirectories: true)
 
         // Flush pending saves so the copied file is current.
-        snippets.saveNow()
+        try snippets.save()
 
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HHmmss"
