@@ -37,6 +37,41 @@ enum HistoryExpiration: String, CaseIterable, Identifiable {
     }
 }
 
+/// How often automatic snippet backups are created.
+enum BackupInterval: String, CaseIterable, Identifiable {
+    case hourly
+    case sixHours
+    case twelveHours
+    case daily
+    case weekly
+    case monthly
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .hourly: return "Every hour"
+        case .sixHours: return "Every 6 hours"
+        case .twelveHours: return "Every 12 hours"
+        case .daily: return "Daily"
+        case .weekly: return "Weekly"
+        case .monthly: return "Monthly"
+        }
+    }
+
+    /// Minimum time between backups in seconds.
+    var timeInterval: TimeInterval {
+        switch self {
+        case .hourly: return 3600
+        case .sixHours: return 6 * 3600
+        case .twelveHours: return 12 * 3600
+        case .daily: return 24 * 3600
+        case .weekly: return 7 * 24 * 3600
+        case .monthly: return 30 * 24 * 3600
+        }
+    }
+}
+
 /// App-wide user settings, persisted in UserDefaults.
 /// Mirrors the preference surface of the original ClipMenu.
 final class Settings: ObservableObject {
@@ -78,6 +113,7 @@ final class Settings: ObservableObject {
 
     // MARK: Backup
     @Published var backupEnabled: Bool { didSet { save("backupEnabled", backupEnabled) } }
+    @Published var backupInterval: BackupInterval { didSet { save("backupInterval", backupInterval.rawValue) } }
     @Published var backupFolderPath: String { didSet { save("backupFolderPath", backupFolderPath) } }
 
     // MARK: Hotkeys
@@ -106,6 +142,7 @@ final class Settings: ObservableObject {
             "launchAtLogin": false,
             "autoUpdateEnabled": true,
             "backupEnabled": true,
+            "backupInterval": BackupInterval.daily.rawValue,
             "backupFolderPath": Self.defaultBackupFolder() ?? "",
         ])
 
@@ -127,6 +164,8 @@ final class Settings: ObservableObject {
         pasteSnippetsAutomatically = defaults.bool(forKey: "pasteSnippetsAutomatically")
         autoUpdateEnabled = defaults.bool(forKey: "autoUpdateEnabled")
         backupEnabled = defaults.bool(forKey: "backupEnabled")
+        backupInterval = defaults.string(forKey: "backupInterval")
+            .flatMap(BackupInterval.init(rawValue:)) ?? .daily
         backupFolderPath = defaults.string(forKey: "backupFolderPath") ?? ""
         excludedBundleIDs = defaults.stringArray(forKey: "excludedBundleIDs") ?? []
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")

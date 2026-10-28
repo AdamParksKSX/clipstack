@@ -197,7 +197,15 @@ private struct BackupPane: View {
 
     var body: some View {
         Form {
-            Toggle("Back up snippets automatically (daily)", isOn: $settings.backupEnabled)
+            Toggle("Back up snippets automatically", isOn: $settings.backupEnabled)
+
+            Picker("Backup interval:", selection: $settings.backupInterval) {
+                ForEach(BackupInterval.allCases) { interval in
+                    Text(interval.label).tag(interval)
+                }
+            }
+            .disabled(!settings.backupEnabled)
+            .fixedSize()
 
             LabeledContent("Backup folder:") {
                 VStack(alignment: .trailing, spacing: 4) {
@@ -223,7 +231,7 @@ private struct BackupPane: View {
                 }
             }
 
-            Caption("Backups go to your Google Drive sync folder, so Drive uploads them automatically. The \(BackupManager.keepCount) most recent daily backups are kept.")
+            Caption("Backups go to your Google Drive sync folder, so Drive uploads them automatically. The \(BackupManager.keepCount) most recent backups are kept.")
         }
         .padding()
         .onReceive(NotificationCenter.default.publisher(for: BackupManager.didBackUpNotification)) { _ in

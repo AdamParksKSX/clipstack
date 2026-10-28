@@ -2,7 +2,7 @@ import Foundation
 
 /// Automatic backups of snippets into a folder — by default the
 /// Google Drive for desktop sync folder, so backups land in Drive without any
-/// API integration. Runs a daily backup and keeps the most recent ones.
+/// API integration. Runs backups at a configurable interval and keeps the most recent ones.
 final class BackupManager {
     static let shared = BackupManager()
     static let didBackUpNotification = Notification.Name("BackupManagerDidBackUp")
@@ -11,8 +11,8 @@ final class BackupManager {
     static let keepCount = 14
     private static let lastBackupKey = "lastBackupDate"
 
-    private var settings: Settings!
-    private var snippets: SnippetStore!
+    private var settings: Settings?
+    private var snippets: SnippetStore?
     private var timer: Timer?
 
     private init() {}
@@ -20,6 +20,8 @@ final class BackupManager {
     func configure(settings: Settings, snippets: SnippetStore) {
         self.settings = settings
         self.snippets = snippets
+        NotificationCenter.default.addObserver(self, selector: #selector(settingsChanged),
+                                               name: Settings.changedNotification, object: nil)
     }
 
     var lastBackupDate: Date? {
@@ -28,8 +30,8 @@ final class BackupManager {
 
     func start() {
         stop()
-        // Check hourly; back up when the last backup is over a day old.
-        let timer = Timer(timeInterval: 3600, repeats: true) { [weak self] _ in
+        // Check periodically (every 10 minutes) so hourly intervals are timely.
+        let timer = Timer(timeInterval: 600, repeats: true) { [weak self] _ in
             self?.backUpIfDue()
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -45,9 +47,13 @@ final class BackupManager {
         timer = nil
     }
 
+    @objc private func settingsChanged() {
+        backUpIfDue()
+    }
+
     private func backUpIfDue() {
-        guard settings.backupEnabled, !settings.backupFolderPath.isEmpty else { return }
-        if let last = lastBackupDate, Date().timeIntervalSince(last) < 24 * 3600 { return }
+        guard let settings, settings.backupEnabled, !settings.backupFolderPath.isEmpty else { return }
+        if let last = lastBackupDate, Date().timeIntervalSince(last) < settings.backupInterval.timeInterval { return }
         do {
             try backUpNow()
         } catch {
@@ -58,6 +64,10 @@ final class BackupManager {
     /// Performs a backup immediately. Returns the created backup directory.
     @discardableResult
     func backUpNow() throws -> URL {
+        guard let settings, let snippets else {
+            throw NSError(domain: "ClipStack", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "BackupManager not configured."])
+        }
         let baseFolder = URL(fileURLWithPath: settings.backupFolderPath, isDirectory: true)
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: baseFolder, withIntermediateDirectories: true)

@@ -7,6 +7,12 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.3.6
+
+- **Configurable backup intervals** — Automatic snippet backups can now be
+  scheduled every hour, every 6 hours, every 12 hours, daily (default), weekly,
+  or monthly in Preferences → Backup.
+
 ## What's new in 1.3.5
 
 - Standard editing shortcuts — ⌘C, ⌘V, ⌘X, ⌘A and ⌘Z / ⌘⇧Z — now work in
@@ -101,14 +107,15 @@ Older changes are on the
   exports, ClipStack JSON backups, and Text Blaze folder exports (JSON).
   Text Blaze dynamic `{commands}` are imported as literal text.
 - **Automatic backups to Google Drive** — snippets are backed up
-  daily into the Google Drive for desktop sync folder
-  (`My Drive/ClipStack Backups`), keeping the 14 most recent. Configure or run
-  on demand in Preferences → Backup.
+  automatically at configurable intervals (every hour, 6 hours, 12 hours,
+  daily, weekly, or monthly; default daily) into the Google Drive for desktop
+  sync folder (`My Drive/ClipStack Backups`), keeping the 14 most recent.
+  Configure or run on demand in Preferences → Backup.
 - **Auto-delete** — optionally remove history items older than a chosen
   period (1 hour to 1 month) in Preferences → History; favourites are exempt.
 - **Preferences** — history size, auto-delete period, inline/folder counts,
-  title length, thumbnails, tooltips, persistence, excluded apps, launch at
-  login, hotkeys.
+  title length, thumbnails, tooltips, persistence, backup interval and folder,
+  excluded apps, launch at login, hotkeys.
 
 ## Modern niceties
 
