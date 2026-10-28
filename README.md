@@ -7,6 +7,13 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.3.8
+
+- **Fixed menu row highlighting** — Custom clip rows with inline action buttons
+  no longer stay stuck highlighted in blue when moving the cursor across the menu
+  or over folder submenus. Highlighting is now strictly mutually exclusive across
+  all rows and clears properly when hovering non-custom items or closing the menu.
+
 ## What's new in 1.3.7
 
 - **Auto-delete backups older than 2 weeks** — Snippet backups older than 14 days

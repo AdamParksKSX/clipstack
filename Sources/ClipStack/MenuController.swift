@@ -48,12 +48,18 @@ final class MenuController: NSObject, NSMenuDelegate {
         rebuild(menu, includeAppCommands: true, historyOnly: false)
     }
 
-    /// Custom-view rows don't repaint on keyboard highlight changes, so the
-    /// highlight is mirrored into each row by hand.
+    /// Mirrors menu highlight state to custom-view rows (for keyboard navigation
+    /// or when hovering over a standard non-custom item).
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
-        for menuItem in menu.items {
-            (menuItem.view as? ClipRowView)?.itemHighlighted = (menuItem === item)
+        if let item, let row = item.view as? ClipRowView {
+            ClipRowView.setActive(row)
+        } else {
+            ClipRowView.setActive(nil)
         }
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        ClipRowView.setActive(nil)
     }
 
     // MARK: Hotkey popups

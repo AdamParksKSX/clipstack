@@ -9,16 +9,30 @@ final class ClipRowView: NSView {
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
 
-    /// Keyboard-navigation highlight, mirrored from the enclosing menu item
-    /// by MenuController (custom views don't repaint on highlight by default).
-    var itemHighlighted = false { didSet { refreshAppearance() } }
+    /// The currently highlighted custom row across all menus.
+    private(set) static weak var activeRow: ClipRowView?
+
+    static func setActive(_ row: ClipRowView?) {
+        guard activeRow !== row else { return }
+        let previous = activeRow
+        activeRow = row
+        previous?.isHighlighted = false
+        row?.isHighlighted = true
+    }
+
+    /// Selection / hover highlight. Kept mutually exclusive via `setActive`.
+    var isHighlighted = false {
+        didSet {
+            guard oldValue != isHighlighted else { return }
+            refreshAppearance()
+        }
+    }
 
     private var isFavorite: Bool
     private let titleField: NSTextField
     private let favoriteButton: NSButton
     private let editButton: NSButton?
     private let deleteButton: NSButton
-    private var hovered = false { didSet { refreshAppearance() } }
     private var trackingArea: NSTrackingArea?
 
     init(title: String, icon: NSImage?, isFavorite: Bool, canEdit: Bool, toolTip: String?) {
@@ -89,17 +103,16 @@ final class ClipRowView: NSView {
     // MARK: Appearance
 
     override func draw(_ dirtyRect: NSRect) {
-        guard hovered || itemHighlighted else { return }
+        guard isHighlighted else { return }
         let rect = bounds.insetBy(dx: 5, dy: 0)
         NSColor.controlAccentColor.withAlphaComponent(0.85).setFill()
         NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
     }
 
     private func refreshAppearance() {
-        let emphasized = hovered || itemHighlighted
-        titleField.textColor = emphasized ? .selectedMenuItemTextColor : .labelColor
-        let buttonTint: NSColor = emphasized ? .selectedMenuItemTextColor : .secondaryLabelColor
-        favoriteButton.contentTintColor = isFavorite && !emphasized ? .systemYellow : buttonTint
+        titleField.textColor = isHighlighted ? .selectedMenuItemTextColor : .labelColor
+        let buttonTint: NSColor = isHighlighted ? .selectedMenuItemTextColor : .secondaryLabelColor
+        favoriteButton.contentTintColor = isFavorite && !isHighlighted ? .systemYellow : buttonTint
         editButton?.contentTintColor = buttonTint
         deleteButton.contentTintColor = buttonTint
         needsDisplay = true
@@ -109,14 +122,42 @@ final class ClipRowView: NSView {
         super.updateTrackingAreas()
         if let trackingArea { removeTrackingArea(trackingArea) }
         let area = NSTrackingArea(rect: bounds,
-                                  options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
                                   owner: self, userInfo: nil)
         addTrackingArea(area)
         trackingArea = area
     }
 
-    override func mouseEntered(with event: NSEvent) { hovered = true }
-    override func mouseExited(with event: NSEvent) { hovered = false }
+    override func mouseEntered(with event: NSEvent) {
+        Self.setActive(self)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        if Self.activeRow !== self {
+            Self.setActive(self)
+        }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        guard !bounds.contains(location) else { return }
+        if Self.activeRow === self {
+            Self.setActive(nil)
+        }
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil && Self.activeRow === self {
+            Self.setActive(nil)
+        }
+    }
+
+    deinit {
+        if Self.activeRow === self {
+            Self.activeRow = nil
+        }
+    }
 
     // MARK: Actions
 
@@ -145,6 +186,9 @@ final class ClipRowView: NSView {
     }
 
     @objc private func deleteClicked() {
+        if Self.activeRow === self {
+            Self.setActive(nil)
+        }
         // The controller removes the clip and its menu item; menu stays open.
         onDelete?()
     }
