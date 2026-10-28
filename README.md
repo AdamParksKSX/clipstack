@@ -7,6 +7,12 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.3.7
+
+- **Auto-delete backups older than 2 weeks** — Snippet backups older than 14 days
+  are now automatically deleted during backup runs and periodic checks, keeping
+  your backup folder tidy while always preserving at least the most recent backup.
+
 ## What's new in 1.3.6
 
 - **Configurable backup intervals** — Automatic snippet backups can now be
@@ -109,8 +115,8 @@ Older changes are on the
 - **Automatic backups to Google Drive** — snippets are backed up
   automatically at configurable intervals (every hour, 6 hours, 12 hours,
   daily, weekly, or monthly; default daily) into the Google Drive for desktop
-  sync folder (`My Drive/ClipStack Backups`), keeping the 14 most recent.
-  Configure or run on demand in Preferences → Backup.
+  sync folder (`My Drive/ClipStack Backups`), automatically removing backups
+  older than 2 weeks. Configure or run on demand in Preferences → Backup.
 - **Auto-delete** — optionally remove history items older than a chosen
   period (1 hour to 1 month) in Preferences → History; favourites are exempt.
 - **Preferences** — history size, auto-delete period, inline/folder counts,

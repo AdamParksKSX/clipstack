@@ -7,8 +7,8 @@ final class BackupManager {
     static let shared = BackupManager()
     static let didBackUpNotification = Notification.Name("BackupManagerDidBackUp")
 
-    /// How many timestamped backups to keep in the backup folder.
-    static let keepCount = 14
+    /// How long backups are kept before automatic deletion (2 weeks).
+    static let maxBackupAge: TimeInterval = 14 * 24 * 3600
     private static let lastBackupKey = "lastBackupDate"
 
     private var settings: Settings?
@@ -53,6 +53,8 @@ final class BackupManager {
 
     private func backUpIfDue() {
         guard let settings, settings.backupEnabled, !settings.backupFolderPath.isEmpty else { return }
+        let baseFolder = URL(fileURLWithPath: settings.backupFolderPath, isDirectory: true)
+        prune(in: baseFolder)
         if let last = lastBackupDate, Date().timeIntervalSince(last) < settings.backupInterval.timeInterval { return }
         do {
             try backUpNow()
@@ -92,17 +94,40 @@ final class BackupManager {
         return backupDir
     }
 
-    /// Removes the oldest backups beyond the keep count.
+    /// Removes backups older than 2 weeks (14 days), always preserving at least the newest backup.
     private func prune(in baseFolder: URL) {
         let fileManager = FileManager.default
         guard let entries = try? fileManager.contentsOfDirectory(at: baseFolder,
-                                                                 includingPropertiesForKeys: nil) else { return }
+                                                                 includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey]) else { return }
         let backups = entries
             .filter { $0.lastPathComponent.hasPrefix("ClipStack Backup ") }
-            .sorted { $0.lastPathComponent < $1.lastPathComponent } // timestamp order
-        guard backups.count > Self.keepCount else { return }
-        for old in backups.prefix(backups.count - Self.keepCount) {
-            try? fileManager.removeItem(at: old)
+            .sorted { $0.lastPathComponent < $1.lastPathComponent } // chronological order
+        guard backups.count > 1 else { return }
+
+        let cutoff = Date().addingTimeInterval(-Self.maxBackupAge)
+        for backup in backups.dropLast() {
+            if let date = Self.date(forBackupURL: backup), date < cutoff {
+                try? fileManager.removeItem(at: backup)
+            }
         }
+    }
+
+    private static let folderDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HHmmss"
+        return formatter
+    }()
+
+    private static func date(forBackupURL url: URL) -> Date? {
+        let name = url.lastPathComponent
+        let prefix = "ClipStack Backup "
+        if name.hasPrefix(prefix) {
+            let dateString = String(name.dropFirst(prefix.count))
+            if let date = folderDateFormatter.date(from: dateString) {
+                return date
+            }
+        }
+        let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+        return values?.creationDate ?? values?.contentModificationDate
     }
 }

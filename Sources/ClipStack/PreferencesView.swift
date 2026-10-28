@@ -231,7 +231,7 @@ private struct BackupPane: View {
                 }
             }
 
-            Caption("Backups go to your Google Drive sync folder, so Drive uploads them automatically. The \(BackupManager.keepCount) most recent backups are kept.")
+            Caption("Backups go to your Google Drive sync folder, so Drive uploads them automatically. Backups older than 2 weeks are deleted automatically.")
         }
         .padding()
         .onReceive(NotificationCenter.default.publisher(for: BackupManager.didBackUpNotification)) { _ in
