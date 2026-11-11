@@ -274,23 +274,41 @@ final class MenuController: NSObject, NSMenuDelegate {
         return icon
     }
 
+    /// Snippet folders as submenus (nested for subfolders). Folders with no
+    /// snippets anywhere inside them are left out.
     private func addSnippetItems(to menu: NSMenu, inline: Bool) {
-        for folder in snippets.folders where !folder.snippets.isEmpty {
-            if inline && snippets.folders.count == 1 {
-                // A single folder popped up via hotkey shows its snippets directly.
-                for (index, snippet) in folder.snippets.enumerated() {
-                    menu.addItem(snippetMenuItem(for: snippet, numberInMenu: index))
-                }
-            } else {
-                let folderItem = NSMenuItem(title: folder.name, action: nil, keyEquivalent: "")
-                folderItem.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
-                let submenu = NSMenu(title: folder.name)
-                for (index, snippet) in folder.snippets.enumerated() {
-                    submenu.addItem(snippetMenuItem(for: snippet, numberInMenu: index))
-                }
-                folderItem.submenu = submenu
-                menu.addItem(folderItem)
-            }
+        let folders = snippets.folders.filter(\.containsSnippets)
+        if inline && folders.count == 1 {
+            // A single folder popped up via hotkey shows its contents directly.
+            addContents(of: folders[0], to: menu)
+            return
+        }
+        for folder in folders {
+            menu.addItem(snippetFolderItem(for: folder))
+        }
+    }
+
+    private func snippetFolderItem(for folder: SnippetFolder) -> NSMenuItem {
+        let folderItem = NSMenuItem(title: folder.name, action: nil, keyEquivalent: "")
+        folderItem.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+        let submenu = NSMenu(title: folder.name)
+        addContents(of: folder, to: submenu)
+        folderItem.submenu = submenu
+        return folderItem
+    }
+
+    /// A folder's subfolders first, then its own snippets (numbered from 1
+    /// within this menu), like files in Finder.
+    private func addContents(of folder: SnippetFolder, to menu: NSMenu) {
+        let subfolders = folder.subfolders.filter(\.containsSnippets)
+        for subfolder in subfolders {
+            menu.addItem(snippetFolderItem(for: subfolder))
+        }
+        if !subfolders.isEmpty && !folder.snippets.isEmpty {
+            menu.addItem(.separator())
+        }
+        for (index, snippet) in folder.snippets.enumerated() {
+            menu.addItem(snippetMenuItem(for: snippet, numberInMenu: index))
         }
     }
 
@@ -574,7 +592,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         do {
             let imported = try SnippetImporter.importFolders(from: url)
             snippets.folders.append(contentsOf: imported)
-            let count = imported.reduce(0) { $0 + $1.snippets.count }
+            let count = imported.reduce(0) { $0 + $1.totalSnippetCount }
             alert.messageText = "Snippets imported"
             alert.informativeText = "Added \(imported.count) folder\(imported.count == 1 ? "" : "s") with \(count) snippet\(count == 1 ? "" : "s")."
         } catch {

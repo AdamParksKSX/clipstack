@@ -37,7 +37,7 @@ enum SnippetImporter {
             folders = try parseXML(data)
         }
         guard !folders.isEmpty else { throw ImportError.emptyFile }
-        return folders
+        return folders.map { $0.withFreshIDs() }
     }
 
     /// Parses a Realfire saved scripts export: a JSON object whose "items"

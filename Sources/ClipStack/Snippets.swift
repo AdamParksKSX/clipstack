@@ -11,6 +11,106 @@ struct SnippetFolder: Codable, Identifiable, Equatable, Hashable {
     var id = UUID()
     var name: String
     var snippets: [Snippet]
+    /// Nested folders, shown before the folder's own snippets.
+    var subfolders: [SnippetFolder] = []
+
+    /// Whether this folder or any folder inside it holds a snippet.
+    var containsSnippets: Bool {
+        !snippets.isEmpty || subfolders.contains { $0.containsSnippets }
+    }
+
+    /// Snippets in this folder and every folder inside it.
+    var totalSnippetCount: Int {
+        snippets.count + subfolders.reduce(0) { $0 + $1.totalSnippetCount }
+    }
+
+    /// A copy with new IDs throughout, so imported folders (e.g. from a
+    /// ClipStack backup of the current snippets) never clash with existing ones.
+    func withFreshIDs() -> SnippetFolder {
+        SnippetFolder(name: name,
+                      snippets: snippets.map { Snippet(title: $0.title, content: $0.content) },
+                      subfolders: subfolders.map { $0.withFreshIDs() })
+    }
+}
+
+extension SnippetFolder {
+    // Declared in an extension to keep the memberwise initializer.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try container.decode(String.self, forKey: .name)
+        snippets = try container.decode([Snippet].self, forKey: .snippets)
+        // Snippet files and backups written before 1.4.0 have no subfolders.
+        subfolders = try container.decodeIfPresent([SnippetFolder].self, forKey: .subfolders) ?? []
+    }
+}
+
+/// Tree operations on a list of top-level folders. A folder's position is an
+/// index path: its index at the top level, then within each subfolder list.
+extension Array where Element == SnippetFolder {
+    /// Index path of the folder with `id`, or nil if it isn't in the tree.
+    func indexPath(ofFolder id: UUID) -> [Int]? {
+        for (index, folder) in enumerated() {
+            if folder.id == id { return [index] }
+            if let inner = folder.subfolders.indexPath(ofFolder: id) {
+                return [index] + inner
+            }
+        }
+        return nil
+    }
+
+    /// The folder at a valid, non-empty index path.
+    subscript(path path: [Int]) -> SnippetFolder {
+        get {
+            let folder = self[path[0]]
+            return path.count == 1 ? folder : folder.subfolders[path: Array<Int>(path.dropFirst())]
+        }
+        set {
+            if path.count == 1 {
+                self[path[0]] = newValue
+            } else {
+                self[path[0]].subfolders[path: Array<Int>(path.dropFirst())] = newValue
+            }
+        }
+    }
+
+    func folder(withID id: UUID) -> SnippetFolder? {
+        indexPath(ofFolder: id).map { self[path: $0] }
+    }
+
+    /// The folder holding the snippet with `id`.
+    func folderID(containingSnippet id: UUID) -> UUID? {
+        for folder in self {
+            if folder.snippets.contains(where: { $0.id == id }) { return folder.id }
+            if let inner = folder.subfolders.folderID(containingSnippet: id) { return inner }
+        }
+        return nil
+    }
+
+    /// Every folder in display order with its nesting depth (0 = top level).
+    func flattened(depth: Int = 0) -> [(folder: SnippetFolder, depth: Int)] {
+        flatMap { [($0, depth)] + $0.subfolders.flattened(depth: depth + 1) }
+    }
+
+    /// Removes and returns the folder with `id`, wherever it is in the tree.
+    @discardableResult
+    mutating func removeFolder(id: UUID) -> SnippetFolder? {
+        guard let path = indexPath(ofFolder: id) else { return nil }
+        if path.count == 1 {
+            return remove(at: path[0])
+        }
+        let parentPath = Array<Int>(path.dropLast())
+        return self[path: parentPath].subfolders.remove(at: path[path.count - 1])
+    }
+
+    /// Removes and returns the snippet with `id` from whichever folder holds it.
+    @discardableResult
+    mutating func removeSnippet(id: UUID) -> Snippet? {
+        guard let folderID = folderID(containingSnippet: id),
+              let path = indexPath(ofFolder: folderID),
+              let index = self[path: path].snippets.firstIndex(where: { $0.id == id }) else { return nil }
+        return self[path: path].snippets.remove(at: index)
+    }
 }
 
 /// User-defined snippet folders, editable in the snippet editor window and
@@ -45,6 +145,72 @@ final class SnippetStore: ObservableObject {
                 ]),
             ]
         }
+    }
+
+    // MARK: Tree edits
+    // Each edit works on a copy and assigns `folders` once, so it is a
+    // single change (one autosave, one SwiftUI update).
+
+    /// Adds a folder at the top level, or inside `parentID` when given.
+    @discardableResult
+    func addFolder(named name: String, inside parentID: UUID?) -> SnippetFolder {
+        let folder = SnippetFolder(name: name, snippets: [])
+        var tree = folders
+        if let parentID, let path = tree.indexPath(ofFolder: parentID) {
+            tree[path: path].subfolders.append(folder)
+        } else {
+            tree.append(folder)
+        }
+        folders = tree
+        return folder
+    }
+
+    func removeFolder(id: UUID) {
+        var tree = folders
+        tree.removeFolder(id: id)
+        folders = tree
+    }
+
+    /// Moves a folder (with everything in it) to the top level when
+    /// `parentID` is nil, or to the end of `parentID`'s subfolders. Returns
+    /// false, changing nothing, for a move into itself or one of its own
+    /// subfolders, or one that wouldn't change anything.
+    @discardableResult
+    func moveFolder(id: UUID, inside parentID: UUID?) -> Bool {
+        guard id != parentID, let folder = folders.folder(withID: id) else { return false }
+        if let parentID {
+            // Can't move a folder into its own subtree.
+            guard [folder].indexPath(ofFolder: parentID) == nil,
+                  folders.folder(withID: parentID) != nil else { return false }
+            if folders.folder(withID: parentID)?.subfolders.contains(where: { $0.id == id }) == true {
+                return false
+            }
+        } else if folders.contains(where: { $0.id == id }) {
+            return false
+        }
+        var tree = folders
+        tree.removeFolder(id: id)
+        if let parentID, let path = tree.indexPath(ofFolder: parentID) {
+            tree[path: path].subfolders.append(folder)
+        } else {
+            tree.append(folder)
+        }
+        folders = tree
+        return true
+    }
+
+    /// Moves a snippet to the end of folder `folderID`. Returns false,
+    /// changing nothing, if it's already there or either one is missing.
+    @discardableResult
+    func moveSnippet(id: UUID, toFolder folderID: UUID) -> Bool {
+        guard folders.folderID(containingSnippet: id) != folderID,
+              folders.folder(withID: folderID) != nil else { return false }
+        var tree = folders
+        guard let snippet = tree.removeSnippet(id: id),
+              let path = tree.indexPath(ofFolder: folderID) else { return false }
+        tree[path: path].snippets.append(snippet)
+        folders = tree
+        return true
     }
 
     private func scheduleSave() {

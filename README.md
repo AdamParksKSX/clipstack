@@ -7,6 +7,19 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.4.0
+
+- **Subfolders** — snippet folders can now contain folders. In the Snippet
+  Editor, select a folder and click the new-subfolder button (or right-click
+  → New Subfolder); subfolders appear as nested submenus in the menu.
+- **Move snippets and folders** — drag a snippet or folder onto any folder in
+  the Snippet Editor's folder list, or right-click it and choose **Move to**.
+  Folders can also be moved back to the top level.
+- Deleting a folder that still holds snippets or subfolders now asks first.
+- Snippet files and backups from earlier versions open unchanged. Imported
+  snippets always get new internal IDs, so importing a backup of your current
+  snippets no longer confuses the editor.
+
 ## What's new in 1.3.9
 
 - **Source app badges** — each new clip shows the 16 × 16 icon of the app it
@@ -118,9 +131,9 @@ Older changes are on the
 - **Source app badges** — each clip shows the icon of the app it was copied
   from.
 - **Number-key shortcuts** (1–9, 0) to select items while a menu is open.
-- **Snippets** — user-defined text in folders, managed in a Snippet Editor
-  window and shown at the bottom of the menu. Auto-pastes on selection
-  (toggleable).
+- **Snippets** — user-defined text in folders and subfolders, managed in a
+  Snippet Editor window (drag or right-click → Move to, to reorganise) and
+  shown at the bottom of the menu. Auto-pastes on selection (toggleable).
 - **Global hotkeys** — ⌘⇧V pops the history menu at the mouse cursor, ⌘⇧B pops
   the snippets menu, ⌘⇧E / ⌘⇧D encode/decode the clipboard as Base64. All are
   re-recordable in Preferences.
