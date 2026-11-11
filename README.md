@@ -7,6 +7,17 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.4.2
+
+- **Reliable drag and drop in the Snippet Editor** — the folder tree and
+  snippet list are now native Mac views. Drags can be repeated as often as
+  you like, the folder under the pointer is highlighted as the drop target,
+  and the folder you drop into opens to show what moved there.
+- Drop a folder in the gap between top-level folders to move it to the top
+  level.
+- Right-click menus: Rename, New Subfolder, Move to, and Delete for folders;
+  Rename, Move to, and Delete for snippets.
+
 ## What's new in 1.4.1
 
 - **Fixed dragging in the Snippet Editor** — snippets and folders can now be
