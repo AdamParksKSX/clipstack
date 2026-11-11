@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 /// Three-pane snippet editor: a folder tree (folders can hold subfolders),
 /// the selected folder's snippets, and the selected snippet's content.
 /// Snippets and folders move by dragging them onto a folder in the tree, or
-/// with their right-click "Move to" menu.
+/// with their right-click "Move to" menu. Double-click a name to rename it.
 struct SnippetEditorView: View {
     @ObservedObject var store: SnippetStore
     @Environment(\.undoManager) private var undoManager
@@ -15,6 +15,11 @@ struct SnippetEditorView: View {
     /// The folder row a drag is hovering over, highlighted as the drop target.
     @State private var dropTargetFolderID: UUID?
     @State private var folderPendingDeletion: SnippetFolder?
+    /// The folder or snippet whose name is being edited. Names are plain
+    /// text otherwise: an always-editable text field swallows the mouse, so
+    /// rows couldn't be dragged.
+    @State private var renamingID: UUID?
+    @FocusState private var renameFieldFocused: Bool
     /// True briefly after an explicit Save, to flash a confirmation.
     @State private var showSavedConfirmation = false
     @State private var savedConfirmationCount = 0
@@ -111,6 +116,9 @@ struct SnippetEditorView: View {
         // in; replayed against another snippet they'd corrupt it.
         .onChange(of: selectedFolderID) { _ in undoManager?.removeAllActions() }
         .onChange(of: selectedSnippetID) { _ in undoManager?.removeAllActions() }
+        .onChange(of: renameFieldFocused) { focused in
+            if !focused { renamingID = nil }
+        }
         .confirmationDialog(deletionTitle, isPresented: deletionDialogShown, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 if let folder = folderPendingDeletion { removeFolder(folder.id) }
@@ -239,7 +247,7 @@ struct SnippetEditorView: View {
             Image(systemName: "folder")
                 .foregroundColor(.secondary)
                 .frame(width: 16)
-            TextField("Folder name", text: folderNameBinding(folder.id))
+            nameLabel(id: folder.id, text: folderNameBinding(folder.id), placeholder: "Folder name")
         }
         .padding(.leading, CGFloat(depth) * 14)
         .padding(.vertical, 1)
@@ -256,6 +264,7 @@ struct SnippetEditorView: View {
 
     @ViewBuilder
     private func folderContextMenu(_ folder: SnippetFolder) -> some View {
+        Button("Rename") { startRenaming(folder.id) }
         Button("New Subfolder") { addSubfolder(inside: folder.id) }
         Menu("Move to") {
             Button("Top Level") { moveFolder(folder.id, inside: nil) }
@@ -278,7 +287,7 @@ struct SnippetEditorView: View {
             Image(systemName: "doc.text")
                 .foregroundColor(.secondary)
                 .frame(width: 16)
-            TextField("Title", text: snippet.title)
+            nameLabel(id: id, text: snippet.title, placeholder: "Title")
         }
         .onDrag { NSItemProvider(object: DragPayload.snippet(id).string as NSString) }
         .contextMenu {
@@ -288,9 +297,38 @@ struct SnippetEditorView: View {
                         .disabled(target.id == folderID)
                 }
             }
+            Button("Rename") { startRenaming(id) }
             Divider()
             Button("Delete Snippet") { removeSnippet(id) }
         }
+    }
+
+    // MARK: Renaming
+
+    /// Plain text, or a focused text field while this item is being renamed
+    /// (double-click the name, or right-click → Rename; Return or clicking
+    /// elsewhere finishes).
+    @ViewBuilder
+    private func nameLabel(id: UUID, text: Binding<String>, placeholder: String) -> some View {
+        if renamingID == id {
+            TextField(placeholder, text: text)
+                .focused($renameFieldFocused)
+                .onSubmit { renamingID = nil }
+                .onExitCommand { renamingID = nil }
+                .onAppear { DispatchQueue.main.async { renameFieldFocused = true } }
+        } else {
+            Text(text.wrappedValue.isEmpty ? placeholder : text.wrappedValue)
+                .foregroundColor(text.wrappedValue.isEmpty ? .secondary : .primary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                // Simultaneous, so single clicks still select and drags still start.
+                .simultaneousGesture(TapGesture(count: 2).onEnded { startRenaming(id) })
+        }
+    }
+
+    private func startRenaming(_ id: UUID) {
+        renamingID = id
     }
 
     // MARK: Dragging
@@ -336,11 +374,15 @@ struct SnippetEditorView: View {
     }
 
     private func acceptDrop(_ providers: [NSItemProvider], onto folderID: UUID) -> Bool {
+        dropTargetFolderID = nil
         guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
         _ = provider.loadObject(ofClass: NSString.self) { object, _ in
             // Text dragged in from other apps isn't a payload and is ignored.
             guard let string = object as? NSString, let payload = DragPayload(string as String) else { return }
-            DispatchQueue.main.async {
+            // Moving removes the dragged row. Doing that while AppKit is still
+            // ending the drag session leaves SwiftUI unable to start the next
+            // drag, so the move waits until the session has finished.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 switch payload {
                 case .snippet(let id): moveSnippet(id, toFolder: folderID)
                 case .folder(let id): moveFolder(id, inside: folderID)
@@ -408,6 +450,7 @@ struct SnippetEditorView: View {
     private func addFolder() {
         let folder = store.addFolder(named: "New Folder", inside: nil)
         selectedFolderID = folder.id
+        startRenaming(folder.id)
     }
 
     private func addSubfolder() {
@@ -419,6 +462,7 @@ struct SnippetEditorView: View {
         let folder = store.addFolder(named: "New Folder", inside: parentID)
         reveal(parentID)
         selectedFolderID = folder.id
+        startRenaming(folder.id)
     }
 
     private func moveFolder(_ folderID: UUID, inside parentID: UUID?) {
@@ -483,6 +527,7 @@ struct SnippetEditorView: View {
         let snippet = Snippet(title: "New Snippet", content: "")
         store.folders[path: path].snippets.append(snippet)
         selectedSnippetID = snippet.id
+        startRenaming(snippet.id)
     }
 
     private func removeSnippet() {

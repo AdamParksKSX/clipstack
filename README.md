@@ -7,6 +7,14 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.4.1
+
+- **Fixed dragging in the Snippet Editor** — snippets and folders can now be
+  dragged from anywhere on their row (not only while renaming), and several
+  can be moved one after another without dragging getting stuck.
+- Names in the Snippet Editor are renamed by double-clicking them or with
+  right-click → **Rename**; press Return or click elsewhere to finish.
+
 ## What's new in 1.4.0
 
 - **Subfolders** — snippet folders can now contain folders. In the Snippet
