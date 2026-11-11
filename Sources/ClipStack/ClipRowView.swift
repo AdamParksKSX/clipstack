@@ -1,10 +1,12 @@
 import AppKit
 
-/// A custom menu-item row for a history clip: icon and title on the left,
-/// favourite / edit / delete buttons inline on the right (in the style of
-/// Clipboard History Pro). Clicking anywhere else on the row pastes the clip.
+/// A custom menu-item row for a history clip: source-app badge, icon and
+/// title on the left, preview / favourite / edit / delete buttons inline on
+/// the right (in the style of Clipboard History Pro). Clicking anywhere else
+/// on the row pastes the clip.
 final class ClipRowView: NSView {
     var onSelect: (() -> Void)?
+    var onPreview: (() -> Void)?
     var onToggleFavorite: (() -> Void)?
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
@@ -12,12 +14,16 @@ final class ClipRowView: NSView {
     /// The currently highlighted custom row across all menus.
     private(set) static weak var activeRow: ClipRowView?
 
+    /// Called whenever the highlighted row changes (mouse or keyboard).
+    static var activeRowDidChange: ((ClipRowView?) -> Void)?
+
     static func setActive(_ row: ClipRowView?) {
         guard activeRow !== row else { return }
         let previous = activeRow
         activeRow = row
         previous?.isHighlighted = false
         row?.isHighlighted = true
+        activeRowDidChange?(row)
     }
 
     /// Selection / hover highlight. Kept mutually exclusive via `setActive`.
@@ -28,14 +34,19 @@ final class ClipRowView: NSView {
         }
     }
 
+    /// Identifies which clip this row represents; set by MenuController.
+    var clipID: UUID = UUID()
+
     private var isFavorite: Bool
     private let titleField: NSTextField
+    private let previewButton: NSButton
     private let favoriteButton: NSButton
     private let editButton: NSButton?
     private let deleteButton: NSButton
     private var trackingArea: NSTrackingArea?
 
-    init(title: String, icon: NSImage?, isFavorite: Bool, canEdit: Bool, toolTip: String?) {
+    init(title: String, icon: NSImage?, sourceIcon: NSImage?, sourceName: String?,
+         isFavorite: Bool, canEdit: Bool, toolTip: String?) {
         self.isFavorite = isFavorite
 
         titleField = NSTextField(labelWithString: title)
@@ -44,6 +55,7 @@ final class ClipRowView: NSView {
         titleField.setContentHuggingPriority(.defaultLow, for: .horizontal)
         titleField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
+        previewButton = Self.makeButton(symbol: "eye", description: "Preview")
         favoriteButton = Self.makeButton(symbol: isFavorite ? "star.fill" : "star",
                                          description: isFavorite ? "Remove from Favourites" : "Add to Favourites")
         editButton = canEdit ? Self.makeButton(symbol: "square.and.pencil", description: "Edit") : nil
@@ -52,6 +64,8 @@ final class ClipRowView: NSView {
         super.init(frame: .zero)
         self.toolTip = toolTip
 
+        previewButton.target = self
+        previewButton.action = #selector(previewClicked)
         favoriteButton.target = self
         favoriteButton.action = #selector(favoriteClicked)
         editButton?.target = self
@@ -60,12 +74,24 @@ final class ClipRowView: NSView {
         deleteButton.action = #selector(deleteClicked)
 
         var views: [NSView] = []
+        if let sourceIcon {
+            // Badge for the app the clip was copied from.
+            let sourceView = NSImageView(image: sourceIcon)
+            sourceView.imageScaling = .scaleProportionallyDown
+            sourceView.widthAnchor.constraint(equalToConstant: 16).isActive = true
+            sourceView.heightAnchor.constraint(equalToConstant: 16).isActive = true
+            if let sourceName {
+                sourceView.toolTip = "Copied from \(sourceName)"
+            }
+            views.append(sourceView)
+        }
         if let icon {
             let iconView = NSImageView(image: icon)
             iconView.imageScaling = .scaleProportionallyDown
             views.append(iconView)
         }
         views.append(titleField)
+        views.append(previewButton)
         views.append(favoriteButton)
         if let editButton { views.append(editButton) }
         views.append(deleteButton)
@@ -112,6 +138,7 @@ final class ClipRowView: NSView {
     private func refreshAppearance() {
         titleField.textColor = isHighlighted ? .selectedMenuItemTextColor : .labelColor
         let buttonTint: NSColor = isHighlighted ? .selectedMenuItemTextColor : .secondaryLabelColor
+        previewButton.contentTintColor = buttonTint
         favoriteButton.contentTintColor = isFavorite && !isHighlighted ? .systemYellow : buttonTint
         editButton?.contentTintColor = buttonTint
         deleteButton.contentTintColor = buttonTint
@@ -168,6 +195,11 @@ final class ClipRowView: NSView {
         let action = onSelect
         // Deferred so focus returns to the target app before any auto-paste.
         DispatchQueue.main.async { action?() }
+    }
+
+    @objc private func previewClicked() {
+        // Toggles the preview panel beside the menu; the menu stays open.
+        onPreview?()
     }
 
     @objc private func favoriteClicked() {

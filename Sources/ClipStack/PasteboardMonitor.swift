@@ -56,12 +56,17 @@ final class PasteboardMonitor {
             }
         }
 
-        if let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+        // The frontmost app is taken to be the one that copied (for the
+        // source badge in the menu).
+        let sourceApp = NSWorkspace.shared.frontmostApplication
+        if let bundleID = sourceApp?.bundleIdentifier,
            settings.excludedBundleIDs.contains(bundleID) {
             return
         }
 
-        guard let clip = ClipItem.read(from: pasteboard, settings: settings) else { return }
+        guard var clip = ClipItem.read(from: pasteboard, settings: settings) else { return }
+        clip.sourceBundleID = sourceApp?.bundleIdentifier
+        clip.sourceAppName = sourceApp?.localizedName
         history.add(clip)
     }
 }

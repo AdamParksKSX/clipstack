@@ -52,22 +52,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HotKeyCenter.shared.unregisterAll()
         if let combo = settings.historyHotKey, !combo.isNone {
             HotKeyCenter.shared.register(combo) { [weak self] in
-                self?.menuController.popUpHistoryMenu()
+                DispatchQueue.main.async { self?.menuController.popUpHistoryMenu() }
             }
         }
         if let combo = settings.snippetsHotKey, !combo.isNone {
             HotKeyCenter.shared.register(combo) { [weak self] in
-                self?.menuController.popUpSnippetsMenu()
+                DispatchQueue.main.async { self?.menuController.popUpSnippetsMenu() }
             }
         }
         if let combo = settings.encodeHotKey, !combo.isNone {
             HotKeyCenter.shared.register(combo) { [weak self] in
-                self?.menuController.performAction(named: "Encode to Base64")
+                DispatchQueue.main.async { self?.menuController.performAction(named: "Encode to Base64") }
             }
         }
         if let combo = settings.decodeHotKey, !combo.isNone {
             HotKeyCenter.shared.register(combo) { [weak self] in
-                self?.menuController.performAction(named: "Decode from Base64")
+                DispatchQueue.main.async { self?.menuController.performAction(named: "Decode from Base64") }
             }
         }
     }

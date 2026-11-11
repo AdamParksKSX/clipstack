@@ -7,6 +7,19 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.3.9
+
+- **Source app badges** — each new clip shows the 16 × 16 icon of the app it
+  was copied from; hover the icon for the app's name. Clips recorded before
+  1.3.9 have no badge.
+- **Clip preview** — click the new 👁 button on a history row to see the
+  clip's full text, image, or file list in a panel beside the menu. While
+  it's open the preview follows the highlighted row; click 👁 again or close
+  the menu to dismiss it.
+- **Realfire script import** — Import Snippets… now accepts Realfire saved
+  scripts exports (JSON); each Realfire folder becomes a snippet folder
+  holding its Apex/SOQL scripts.
+
 ## What's new in 1.3.8
 
 - **Fixed menu row highlighting** — Custom clip rows with inline action buttons
@@ -98,10 +111,12 @@ Older changes are on the
   images, and copied files.
 - **Inline items + numbered folders** — the first N clips appear inline, the
   rest in `11 - 20`-style submenus.
-- **Favourites, editing, and deleting** — every history item has inline
-  **★ favourite**, **✎ edit** (text clips), and **✕ delete** buttons on the
-  right of its row. Favourites are pinned to the top of the menu, never age
-  out of the history, and survive Clear History.
+- **Preview, favourites, editing, and deleting** — every history item has
+  inline **👁 preview**, **★ favourite**, **✎ edit** (text clips), and
+  **✕ delete** buttons on the right of its row. Favourites are pinned to the
+  top of the menu, never age out of the history, and survive Clear History.
+- **Source app badges** — each clip shows the icon of the app it was copied
+  from.
 - **Number-key shortcuts** (1–9, 0) to select items while a menu is open.
 - **Snippets** — user-defined text in folders, managed in a Snippet Editor
   window and shown at the bottom of the menu. Auto-pastes on selection
@@ -117,8 +132,10 @@ Older changes are on the
   each script gets the clipboard text as `clipText` and returns the
   transformed string (the same contract as classic ClipMenu action scripts).
 - **Snippet import** — menu → Import Snippets… reads classic ClipMenu XML
-  exports, ClipStack JSON backups, and Text Blaze folder exports (JSON).
-  Text Blaze dynamic `{commands}` are imported as literal text.
+  exports, ClipStack JSON backups, Text Blaze folder exports (JSON), and
+  Realfire saved scripts exports (JSON). Text Blaze dynamic `{commands}` are
+  imported as literal text; Realfire scripts are grouped by their Realfire
+  folder.
 - **Automatic backups to Google Drive** — snippets are backed up
   automatically at configurable intervals (every hour, 6 hours, 12 hours,
   daily, weekly, or monthly; default daily) into the Google Drive for desktop

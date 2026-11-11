@@ -2,7 +2,8 @@ import Foundation
 
 /// Imports snippet collections from a file. Supports the classic ClipMenu XML
 /// export format (<folders><folder><title>…<snippets><snippet>…), this app's
-/// own JSON format, and Text Blaze folder exports (JSON).
+/// own JSON format, Text Blaze folder exports (JSON), and Realfire saved
+/// scripts exports (JSON).
 enum SnippetImporter {
     enum ImportError: LocalizedError {
         case unsupportedFormat
@@ -11,7 +12,7 @@ enum SnippetImporter {
         var errorDescription: String? {
             switch self {
             case .unsupportedFormat:
-                return "The file is not a recognized snippet format (classic ClipMenu XML, ClipStack JSON, or Text Blaze JSON)."
+                return "The file is not a recognized snippet format (classic ClipMenu XML, ClipStack JSON, Text Blaze JSON, or Realfire saved scripts JSON)."
             case .emptyFile:
                 return "No snippets were found in the file."
             }
@@ -23,9 +24,12 @@ enum SnippetImporter {
         let folders: [SnippetFolder]
         switch url.pathExtension.lowercased() {
         case "json":
-            // ClipStack's own format first, then Text Blaze folder exports.
+            // ClipStack's own format first, then Realfire saved scripts,
+            // then Text Blaze folder exports.
             if let own = try? JSONDecoder().decode([SnippetFolder].self, from: data), !own.isEmpty {
                 folders = own
+            } else if let realfire = parseRealfire(data) {
+                folders = realfire
             } else {
                 folders = try parseTextBlaze(data)
             }
@@ -34,6 +38,45 @@ enum SnippetImporter {
         }
         guard !folders.isEmpty else { throw ImportError.emptyFile }
         return folders
+    }
+
+    /// Parses a Realfire saved scripts export: a JSON object whose "items"
+    /// array holds one entry per saved Apex/SOQL script, each with a "name",
+    /// the script "text" and the Realfire "folder" it lives in. Scripts become
+    /// snippets grouped into one snippet folder per Realfire folder (folders
+    /// sorted by name, scripts in file order). Windows line endings in the
+    /// script text are converted to "\n". Returns nil when the data isn't a
+    /// Realfire export, so the caller can try other formats.
+    private static func parseRealfire(_ data: Data) -> [SnippetFolder]? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let items = root["items"] as? [[String: Any]] else {
+            return nil
+        }
+
+        func trimmed(_ value: Any?) -> String {
+            (value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+
+        var snippetsByFolder: [String: [Snippet]] = [:]
+        for item in items {
+            guard let text = item["text"] as? String else { continue }
+            let content = text
+                .replacingOccurrences(of: "\r\n", with: "\n")
+                .replacingOccurrences(of: "\r", with: "\n")
+            guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+
+            let name = trimmed(item["name"])
+            let title = name.isEmpty
+                ? String(content.trimmingCharacters(in: .whitespacesAndNewlines).prefix(30))
+                : name
+            let folderName = trimmed(item["folder"])
+            snippetsByFolder[folderName.isEmpty ? "Realfire" : folderName, default: []]
+                .append(Snippet(title: title, content: content))
+        }
+
+        return snippetsByFolder
+            .sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending }
+            .map { SnippetFolder(name: $0.key, snippets: $0.value) }
     }
 
     /// Parses a Text Blaze folder export. Text Blaze exports a folder as a

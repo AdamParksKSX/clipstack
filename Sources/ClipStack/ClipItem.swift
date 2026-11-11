@@ -18,11 +18,15 @@ struct ClipItem: Codable, Identifiable, Equatable {
     var imagePNGData: Data?
     var filePaths: [String]
     var isFavorite: Bool
+    var sourceBundleID: String?
+    var sourceAppName: String?
 
     init(id: UUID = UUID(), date: Date = Date(), kind: Kind,
          text: String? = nil, rtfData: Data? = nil,
          imagePNGData: Data? = nil, filePaths: [String] = [],
-         isFavorite: Bool = false) {
+         isFavorite: Bool = false,
+         sourceBundleID: String? = nil,
+         sourceAppName: String? = nil) {
         self.id = id
         self.date = date
         self.kind = kind
@@ -31,6 +35,8 @@ struct ClipItem: Codable, Identifiable, Equatable {
         self.imagePNGData = imagePNGData
         self.filePaths = filePaths
         self.isFavorite = isFavorite
+        self.sourceBundleID = sourceBundleID
+        self.sourceAppName = sourceAppName
     }
 
     init(from decoder: Decoder) throws {
@@ -44,6 +50,8 @@ struct ClipItem: Codable, Identifiable, Equatable {
         filePaths = try container.decodeIfPresent([String].self, forKey: .filePaths) ?? []
         // History files written before favourites existed lack this key.
         isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
+        sourceBundleID = try container.decodeIfPresent(String.self, forKey: .sourceBundleID)
+        sourceAppName = try container.decodeIfPresent(String.self, forKey: .sourceAppName)
     }
 
     /// Compares user-visible content (used for deduplication).

@@ -2,6 +2,7 @@ import AppKit
 
 /// Owns the status item and builds the clip menu: inline history items,
 /// numbered folder submenus, snippet folders, actions, and app commands.
+@MainActor
 final class MenuController: NSObject, NSMenuDelegate {
     private let settings: Settings
     private let history: HistoryStore
@@ -9,6 +10,14 @@ final class MenuController: NSObject, NSMenuDelegate {
     private let monitor: PasteboardMonitor
 
     private var statusItem: NSStatusItem?
+
+    /// The hotkey history popup while it's shown. Folder submenus share this
+    /// delegate, so root-menu callbacks are told apart from theirs by identity.
+    private weak var historyPopupMenu: NSMenu?
+
+    private let previewPanel = ClipPreviewPanel()
+    /// Source-app badges by bundle ID (nil = app not found), per menu build.
+    private var appIconCache: [String: NSImage?] = [:]
 
     var onShowPreferences: (() -> Void)?
     var onShowSnippetEditor: (() -> Void)?
@@ -19,6 +28,9 @@ final class MenuController: NSObject, NSMenuDelegate {
         self.snippets = snippets
         self.monitor = monitor
         super.init()
+        ClipRowView.activeRowDidChange = { [weak self] row in
+            self?.highlightedRowChanged(row)
+        }
     }
 
     func installStatusItem() {
@@ -51,15 +63,14 @@ final class MenuController: NSObject, NSMenuDelegate {
     /// Mirrors menu highlight state to custom-view rows (for keyboard navigation
     /// or when hovering over a standard non-custom item).
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
-        if let item, let row = item.view as? ClipRowView {
-            ClipRowView.setActive(row)
-        } else {
-            ClipRowView.setActive(nil)
-        }
+        ClipRowView.setActive(item?.view as? ClipRowView)
     }
 
     func menuDidClose(_ menu: NSMenu) {
         ClipRowView.setActive(nil)
+        // Only the whole menu closing ends the preview, not a folder submenu.
+        guard menu === statusItem?.menu || menu === historyPopupMenu else { return }
+        previewPanel.dismiss()
     }
 
     // MARK: Hotkey popups
@@ -70,6 +81,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     func popUpHistoryMenu() {
         let menu = NSMenu()
         menu.delegate = self
+        historyPopupMenu = menu
         rebuild(menu, includeAppCommands: false, historyOnly: true, inlineAllHistory: true)
         popUpAtCursor(menu)
     }
@@ -106,8 +118,9 @@ final class MenuController: NSObject, NSMenuDelegate {
     private func rebuild(_ menu: NSMenu, includeAppCommands: Bool, historyOnly: Bool,
                          inlineAllHistory: Bool = false) {
         menu.removeAllItems()
+        appIconCache.removeAll()
 
-        addHistoryItems(to: menu, inlineAll: inlineAllHistory)
+        makeHistoryItems(inlineAll: inlineAllHistory).forEach(menu.addItem)
 
         if !historyOnly {
             let snippetSection = NSMenu()
@@ -137,25 +150,26 @@ final class MenuController: NSObject, NSMenuDelegate {
         }
     }
 
-    private func addHistoryItems(to menu: NSMenu, inlineAll: Bool = false) {
+    /// The history section: favourites, inline clips, and folder submenus.
+    private func makeHistoryItems(inlineAll: Bool) -> [NSMenuItem] {
         guard !history.clips.isEmpty else {
-            menu.addItem(disabledItem("No History"))
-            return
+            return [disabledItem("No History")]
         }
 
+        var items: [NSMenuItem] = []
         // Favourites stay pinned at the top, outside the numbered history.
         let favorites = history.favorites
         let clips = history.clips.filter { !$0.isFavorite }
         for clip in favorites {
-            appendClipItems(to: menu, clip: clip, numberInMenu: -1, displayNumber: nil)
+            items.append(clipMenuItem(for: clip, numberInMenu: -1, displayNumber: nil))
         }
         if !favorites.isEmpty && !clips.isEmpty {
-            menu.addItem(.separator())
+            items.append(.separator())
         }
 
         let inlineCount = inlineAll ? clips.count : min(settings.inlineItemCount, clips.count)
         for index in 0..<inlineCount {
-            appendClipItems(to: menu, clip: clips[index], numberInMenu: index, displayNumber: index + 1)
+            items.append(clipMenuItem(for: clips[index], numberInMenu: index, displayNumber: index + 1))
         }
 
         // Remaining items go in "n - m" folder submenus, like the original.
@@ -170,24 +184,21 @@ final class MenuController: NSObject, NSMenuDelegate {
             for (offset, index) in (start..<end).enumerated() {
                 // Titles show the absolute position (matching the "11 - 20"
                 // folder label); shortcut keys stay positional within the menu.
-                appendClipItems(to: submenu, clip: clips[index], numberInMenu: offset, displayNumber: index + 1)
+                submenu.addItem(clipMenuItem(for: clips[index], numberInMenu: offset, displayNumber: index + 1))
             }
-            unifyClipRowWidths(in: submenu)
+            unifyClipRowWidths(submenu.items)
             folderItem.submenu = submenu
-            menu.addItem(folderItem)
+            items.append(folderItem)
             start = end
         }
-        unifyClipRowWidths(in: menu)
-    }
-
-    private func appendClipItems(to menu: NSMenu, clip: ClipItem, numberInMenu: Int, displayNumber: Int?) {
-        menu.addItem(clipMenuItem(for: clip, numberInMenu: numberInMenu, displayNumber: displayNumber))
+        unifyClipRowWidths(items)
+        return items
     }
 
     /// Custom-view rows size themselves; giving every row in a menu the width
     /// of the widest keeps the buttons in one column.
-    private func unifyClipRowWidths(in menu: NSMenu) {
-        let rows = menu.items.compactMap { $0.view as? ClipRowView }
+    private func unifyClipRowWidths(_ items: [NSMenuItem]) {
+        let rows = items.compactMap { $0.view as? ClipRowView }
         guard !rows.isEmpty else { return }
         let sizes = rows.map(\.fittingSize)
         let width = min(max(300, sizes.map(\.width).max() ?? 0), 560)
@@ -221,21 +232,46 @@ final class MenuController: NSObject, NSMenuDelegate {
         }
 
         let row = ClipRowView(title: title, icon: icon,
+                              sourceIcon: sourceAppIcon(bundleID: clip.sourceBundleID),
+                              sourceName: clip.sourceAppName,
                               isFavorite: clip.isFavorite,
                               canEdit: clip.kind == .text,
                               toolTip: settings.showToolTips ? clip.toolTip : nil)
+        row.clipID = clip.id
         let id = clip.id
         row.onSelect = { [weak self] in self?.pasteClip(id: id) }
         row.onToggleFavorite = { [weak self] in self?.history.toggleFavorite(id: id) }
         row.onEdit = { [weak self] in self?.presentEditDialog(id: id) }
+        row.onPreview = { [weak self, weak row] in
+            if let row { self?.togglePreview(for: row) }
+        }
         row.onDelete = { [weak self, weak item] in
             self?.history.remove(id: id)
+            if self?.previewPanel.clipID == id {
+                self?.previewPanel.dismiss()
+            }
             if let item, let menu = item.menu {
                 menu.removeItem(item)
             }
         }
         item.view = row
         return item
+    }
+
+    /// 16 × 16 icon of the app with `bundleID`, or nil if it isn't installed.
+    private func sourceAppIcon(bundleID: String?) -> NSImage? {
+        guard let bundleID else { return nil }
+        if let cached = appIconCache[bundleID] {
+            return cached
+        }
+        var icon: NSImage?
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            let image = NSWorkspace.shared.icon(forFile: appURL.path)
+            image.size = NSSize(width: 16, height: 16)
+            icon = image
+        }
+        appIconCache[bundleID] = icon
+        return icon
     }
 
     private func addSnippetItems(to menu: NSMenu, inline: Bool) {
@@ -531,7 +567,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.xml, .json]
         panel.allowsMultipleSelection = false
-        panel.message = "Choose a snippet file to import (classic ClipMenu XML, ClipStack JSON, or Text Blaze JSON)"
+        panel.message = "Choose a snippet file to import (classic ClipMenu XML, ClipStack JSON, Text Blaze JSON, or Realfire saved scripts JSON)"
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         let alert = NSAlert()
@@ -557,4 +593,22 @@ final class MenuController: NSObject, NSMenuDelegate {
         onShowPreferences?()
     }
 
+    // MARK: Preview
+
+    private func togglePreview(for row: ClipRowView) {
+        if previewPanel.isVisible, previewPanel.clipID == row.clipID {
+            previewPanel.dismiss()
+        } else if let clip = history.clips.first(where: { $0.id == row.clipID }) {
+            previewPanel.show(clip, beside: row)
+        }
+    }
+
+    /// While the preview is open it follows the highlight, like Quick Look.
+    private func highlightedRowChanged(_ row: ClipRowView?) {
+        guard let row else { return }
+        if previewPanel.isVisible, previewPanel.clipID != row.clipID,
+           let clip = history.clips.first(where: { $0.id == row.clipID }) {
+            previewPanel.show(clip, beside: row)
+        }
+    }
 }
