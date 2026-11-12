@@ -87,6 +87,41 @@ extension Array where Element == SnippetFolder {
         return nil
     }
 
+    /// The folder that holds folder `id`: nil for a top-level folder (or one
+    /// that isn't in the tree).
+    func parentID(ofFolder id: UUID) -> UUID? {
+        guard let path = indexPath(ofFolder: id), path.count > 1 else { return nil }
+        return self[path: Array<Int>(path.dropLast())].id
+    }
+
+    /// Where folder `id` would end up in `parentID`'s subfolders (nil = the
+    /// top level) if moved there: before what is now at `index` in that list,
+    /// or at the end when `index` is nil. The result counts positions after
+    /// the folder leaves its current place. Nil when the move isn't allowed
+    /// (into the folder itself or one of its own subfolders) or wouldn't change
+    /// anything — including a move to the end of the list it is already in,
+    /// so "move into" its own parent is refused rather than reordering.
+    func folderMoveDestination(_ id: UUID, into parentID: UUID?, at index: Int? = nil) -> Int? {
+        guard let path = indexPath(ofFolder: id) else { return nil }
+        let siblings: [SnippetFolder]
+        if let parentID {
+            // A folder's own subtree is every path starting with its own.
+            guard let parentPath = indexPath(ofFolder: parentID),
+                  !parentPath.starts(with: path) else { return nil }
+            siblings = self[path: parentPath].subfolders
+        } else {
+            siblings = self
+        }
+        guard let current = siblings.firstIndex(where: { $0.id == id }) else {
+            return Swift.min(Swift.max(index ?? siblings.count, 0), siblings.count)
+        }
+        guard let index else { return nil }
+        let insertion = Swift.min(Swift.max(index, 0), siblings.count)
+        // Positions after the folder shift up by one once it's taken out.
+        let destination = insertion > current ? insertion - 1 : insertion
+        return destination == current ? nil : destination
+    }
+
     /// Every folder in display order with its nesting depth (0 = top level).
     func flattened(depth: Int = 0) -> [(folder: SnippetFolder, depth: Int)] {
         flatMap { [($0, depth)] + $0.subfolders.flattened(depth: depth + 1) }
@@ -171,29 +206,25 @@ final class SnippetStore: ObservableObject {
         folders = tree
     }
 
-    /// Moves a folder (with everything in it) to the top level when
-    /// `parentID` is nil, or to the end of `parentID`'s subfolders. Returns
-    /// false, changing nothing, for a move into itself or one of its own
-    /// subfolders, or one that wouldn't change anything.
+    /// Moves a folder (with everything in it) into `parentID`'s subfolders,
+    /// or the top level when `parentID` is nil: before what is now at `index`
+    /// in that list, or at the end when `index` is nil. A move within the
+    /// folder's own list reorders it, which is also its order in the menu.
+    /// Returns false, changing nothing, for a move into itself or one of its
+    /// own subfolders, or one that wouldn't change anything (see
+    /// `folderMoveDestination`).
     @discardableResult
-    func moveFolder(id: UUID, inside parentID: UUID?) -> Bool {
-        guard id != parentID, let folder = folders.folder(withID: id) else { return false }
-        if let parentID {
-            // Can't move a folder into its own subtree.
-            guard [folder].indexPath(ofFolder: parentID) == nil,
-                  folders.folder(withID: parentID) != nil else { return false }
-            if folders.folder(withID: parentID)?.subfolders.contains(where: { $0.id == id }) == true {
-                return false
-            }
-        } else if folders.contains(where: { $0.id == id }) {
-            return false
-        }
+    func moveFolder(id: UUID, inside parentID: UUID?, at index: Int? = nil) -> Bool {
+        guard let destination = folders.folderMoveDestination(id, into: parentID, at: index) else { return false }
         var tree = folders
-        tree.removeFolder(id: id)
-        if let parentID, let path = tree.indexPath(ofFolder: parentID) {
-            tree[path: path].subfolders.append(folder)
+        guard let folder = tree.removeFolder(id: id) else { return false }
+        // The destination list is untouched by the removal unless it's the
+        // folder's own list, which `destination` already allows for.
+        if let parentID {
+            guard let path = tree.indexPath(ofFolder: parentID) else { return false }
+            tree[path: path].subfolders.insert(folder, at: destination)
         } else {
-            tree.append(folder)
+            tree.insert(folder, at: destination)
         }
         folders = tree
         return true

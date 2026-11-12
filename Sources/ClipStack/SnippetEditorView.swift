@@ -4,7 +4,9 @@ import AppKit
 /// Three-pane snippet editor: a folder tree (folders can hold subfolders),
 /// the selected folder's snippets, and the selected snippet's content.
 /// Snippets and folders move by dragging them onto a folder in the tree, or
-/// with their right-click "Move to" menu. Double-click a name to rename it.
+/// with their right-click "Move to" menu. Folders are reordered (which sets
+/// their order in the menu) by dragging them between rows, or with right-click
+/// Move Up / Move Down. Double-click a name to rename it.
 /// The tree and snippet list are AppKit views (see SnippetTreeViews.swift).
 struct SnippetEditorView: View {
     @ObservedObject var store: SnippetStore
@@ -251,8 +253,8 @@ struct SnippetEditorView: View {
         folderToRename = folder.id
     }
 
-    private func moveFolder(_ folderID: UUID, inside parentID: UUID?) {
-        store.moveFolder(id: folderID, inside: parentID)
+    private func moveFolder(_ folderID: UUID, inside parentID: UUID?, at index: Int?) {
+        store.moveFolder(id: folderID, inside: parentID, at: index)
     }
 
     private func moveSnippet(_ snippetID: UUID, toFolder folderID: UUID) {

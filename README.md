@@ -7,6 +7,18 @@ ClipStack is a from-scratch reimplementation in Swift 6, AppKit, and SwiftUI —
 no code or assets from the original. Requires macOS 13+.
 
 
+## What's new in 1.4.3
+
+- **Reorder snippet folders** — the menu lists snippet folders in the same
+  order as the Snippet Editor's folder list, and you can now change it. Drag
+  a folder into the gap between two folders to put it there (a line shows
+  where it will land), or right-click it and choose **Move Up** or
+  **Move Down**. This works for subfolders too.
+- Dropping a folder between rows of another folder's subfolders now puts it
+  at that spot instead of at the end.
+- Right-click → **Move to** greys out destinations that wouldn't change
+  anything (such as the folder a snippet is already in).
+
 ## What's new in 1.4.2
 
 - **Reliable drag and drop in the Snippet Editor** — the folder tree and
@@ -151,8 +163,8 @@ Older changes are on the
   from.
 - **Number-key shortcuts** (1–9, 0) to select items while a menu is open.
 - **Snippets** — user-defined text in folders and subfolders, managed in a
-  Snippet Editor window (drag or right-click → Move to, to reorganise) and
-  shown at the bottom of the menu. Auto-pastes on selection (toggleable).
+  Snippet Editor window (drag or right-click → Move to / Move Up / Move Down,
+  to reorganise and reorder) and shown at the bottom of the menu. Auto-pastes on selection (toggleable).
 - **Global hotkeys** — ⌘⇧V pops the history menu at the mouse cursor, ⌘⇧B pops
   the snippets menu, ⌘⇧E / ⌘⇧D encode/decode the clipboard as Base64. All are
   re-recordable in Preferences.

@@ -25,18 +25,6 @@ struct SnippetFolderPath {
     }
 }
 
-/// Whether moving folder `id` into `parentID` (nil = top level) would do
-/// anything and is allowed: never into itself or its own subfolders.
-func canMoveSnippetFolder(_ id: UUID, into parentID: UUID?, in folders: [SnippetFolder]) -> Bool {
-    guard id != parentID, let folder = folders.folder(withID: id) else { return false }
-    guard let parentID else {
-        return !folders.contains { $0.id == id }
-    }
-    guard let parent = folders.folder(withID: parentID),
-          [folder].indexPath(ofFolder: parentID) == nil else { return false }
-    return !parent.subfolders.contains { $0.id == id }
-}
-
 /// A one-column table cell: icon plus an editable name.
 private func makeNameCell(identifier: NSUserInterfaceItemIdentifier, delegate: NSTextFieldDelegate) -> NSTableCellView {
     let cell = NSTableCellView()
@@ -91,15 +79,18 @@ private func makeScrollingTable(_ table: NSTableView) -> NSScrollView {
 // MARK: - Folder tree
 
 /// Folder outline: select, rename (double-click or right-click → Rename),
-/// drag folders onto folders (or between top-level rows for the top level),
-/// and accept snippets dragged from the snippet list.
+/// drag a folder onto a folder to move it inside, or between rows to put it
+/// at that spot (reordering it, and so its place in the menu, when the gap is
+/// in its own list), and accept snippets dragged from the snippet list.
 struct SnippetFolderTree: NSViewRepresentable {
     let folders: [SnippetFolder]
     @Binding var selection: UUID?
     /// Set to a folder ID to start renaming it (cleared once started).
     @Binding var renameRequest: UUID?
     let onRename: (UUID, String) -> Void
-    let onMoveFolder: (UUID, UUID?) -> Void
+    /// Folder, new parent (nil = top level), and position in the parent's
+    /// list as it is before the move (nil = the end).
+    let onMoveFolder: (UUID, UUID?, Int?) -> Void
     let onMoveSnippet: (UUID, UUID) -> Void
     let onNewSubfolder: (UUID) -> Void
     let onDelete: (UUID) -> Void
@@ -119,6 +110,8 @@ struct SnippetFolderTree: NSViewRepresentable {
         outline.doubleAction = #selector(Coordinator.doubleClicked(_:))
         let menu = NSMenu()
         menu.delegate = context.coordinator
+        // Items are enabled or disabled by hand in menuNeedsUpdate.
+        menu.autoenablesItems = false
         outline.menu = menu
         context.coordinator.outline = outline
         return scroll
@@ -279,19 +272,27 @@ struct SnippetFolderTree: NSViewRepresentable {
             return nil
         }
 
-        /// Drops land *on* a folder. A drop between rows counts as a drop on
-        /// that gap's parent folder (the top level, for folders only).
+        /// The position a drop asks for in its target's list: nil for a drop
+        /// on the target itself, which means "at the end".
+        private func dropPosition(_ childIndex: Int) -> Int? {
+            childIndex == NSOutlineViewDropOnItemIndex ? nil : childIndex
+        }
+
+        /// Folders drop onto a folder (moving inside it, at the end) or
+        /// between rows (moving to that spot in the gap's list, which
+        /// reorders the folder within its own list). Snippets only drop onto
+        /// a folder; a gap counts as its parent folder.
         func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo,
                          proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
             guard let dragged = dragged(info) else { return [] }
             let target = (item as? Node)?.id
-            if index != NSOutlineViewDropOnItemIndex {
-                outlineView.setDropItem(item, dropChildIndex: NSOutlineViewDropOnItemIndex)
-            }
             switch dragged {
             case .folder(let id):
-                return canMoveSnippetFolder(id, into: target, in: folders) ? .move : []
+                return folders.folderMoveDestination(id, into: target, at: dropPosition(index)) != nil ? .move : []
             case .snippet(let id):
+                if index != NSOutlineViewDropOnItemIndex {
+                    outlineView.setDropItem(item, dropChildIndex: NSOutlineViewDropOnItemIndex)
+                }
                 guard let target, folders.folderID(containingSnippet: id) != target else { return [] }
                 return .move
             }
@@ -303,9 +304,10 @@ struct SnippetFolderTree: NSViewRepresentable {
             let target = (item as? Node)?.id
             switch dragged {
             case .folder(let id):
-                guard canMoveSnippetFolder(id, into: target, in: folders) else { return false }
+                let position = dropPosition(index)
+                guard folders.folderMoveDestination(id, into: target, at: position) != nil else { return false }
                 // Applied after AppKit finishes the drop, not in the middle of it.
-                DispatchQueue.main.async { self.moveFolder(id, into: target) }
+                DispatchQueue.main.async { self.moveFolder(id, into: target, at: position) }
             case .snippet(let id):
                 guard let target else { return false }
                 DispatchQueue.main.async { self.parent.onMoveSnippet(id, target) }
@@ -322,16 +324,29 @@ struct SnippetFolderTree: NSViewRepresentable {
                   let folder = folders.folder(withID: node.id) else { return }
             menu.addItem(item("Rename", #selector(renameClicked(_:)), node.id))
             menu.addItem(item("New Subfolder", #selector(newSubfolderClicked(_:)), node.id))
+            menu.addItem(.separator())
+
+            // Up and down within the folder's own list (and so the menu).
+            let parentID = folders.parentID(ofFolder: node.id)
+            let siblings = parentID.flatMap { folders.folder(withID: $0)?.subfolders } ?? folders
+            let index = siblings.firstIndex { $0.id == node.id } ?? 0
+            let up = item("Move Up", #selector(moveClicked(_:)), FolderMove(id: node.id, parentID: parentID, index: index - 1))
+            up.isEnabled = index > 0
+            menu.addItem(up)
+            let down = item("Move Down", #selector(moveClicked(_:)), FolderMove(id: node.id, parentID: parentID, index: index + 2))
+            down.isEnabled = index < siblings.count - 1
+            menu.addItem(down)
 
             let moveMenu = NSMenu()
-            let topLevel = item("Top Level", #selector(moveClicked(_:)), [node.id, nil] as [UUID?])
-            topLevel.isEnabled = canMoveSnippetFolder(node.id, into: nil, in: folders)
+            moveMenu.autoenablesItems = false
+            let topLevel = item("Top Level", #selector(moveClicked(_:)), FolderMove(id: node.id, parentID: nil, index: nil))
+            topLevel.isEnabled = folders.folderMoveDestination(node.id, into: nil) != nil
             moveMenu.addItem(topLevel)
             moveMenu.addItem(.separator())
             let ownTree = Set([folder].flattened().map { $0.folder.id })
             for target in SnippetFolderPath.all(in: folders) where !ownTree.contains(target.id) {
-                let entry = item(target.path, #selector(moveClicked(_:)), [node.id, target.id] as [UUID?])
-                entry.isEnabled = canMoveSnippetFolder(node.id, into: target.id, in: folders)
+                let entry = item(target.path, #selector(moveClicked(_:)), FolderMove(id: node.id, parentID: target.id, index: nil))
+                entry.isEnabled = folders.folderMoveDestination(node.id, into: target.id) != nil
                 moveMenu.addItem(entry)
             }
             let move = NSMenuItem(title: "Move to", action: nil, keyEquivalent: "")
@@ -359,14 +374,22 @@ struct SnippetFolderTree: NSViewRepresentable {
             parent.onNewSubfolder(id)
         }
 
-        @objc private func moveClicked(_ sender: NSMenuItem) {
-            guard let pair = sender.representedObject as? [UUID?], pair.count == 2, let id = pair[0] else { return }
-            moveFolder(id, into: pair[1])
+        /// A context-menu move: the folder, its new parent (nil = top level)
+        /// and position (nil = the end), as `onMoveFolder` takes them.
+        private struct FolderMove {
+            let id: UUID
+            let parentID: UUID?
+            let index: Int?
         }
 
-        private func moveFolder(_ id: UUID, into target: UUID?) {
+        @objc private func moveClicked(_ sender: NSMenuItem) {
+            guard let move = sender.representedObject as? FolderMove else { return }
+            moveFolder(move.id, into: move.parentID, at: move.index)
+        }
+
+        private func moveFolder(_ id: UUID, into target: UUID?, at index: Int?) {
             pendingReveal = target
-            parent.onMoveFolder(id, target)
+            parent.onMoveFolder(id, target, index)
         }
 
         @objc private func deleteClicked(_ sender: NSMenuItem) {
@@ -494,6 +517,8 @@ struct SnippetList: NSViewRepresentable {
             let id = snippets[table.clickedRow].id
             menu.addItem(item("Rename", #selector(renameClicked(_:)), id))
             let moveMenu = NSMenu()
+            // Otherwise menu validation re-enables the snippet's own folder.
+            moveMenu.autoenablesItems = false
             for target in SnippetFolderPath.all(in: parent.folders) {
                 let entry = item(target.path, #selector(moveClicked(_:)), [id, target.id])
                 entry.isEnabled = target.id != parent.folderID
